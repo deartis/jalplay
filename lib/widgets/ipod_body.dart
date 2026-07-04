@@ -27,7 +27,7 @@ enum MenuScreen {
   about,
 }
 
-enum _OverlayType { none, songActions, playlistPicker, createPlaylist }
+enum _OverlayType { none, songActions, playlistPicker, createPlaylist, confirmDeletePlaylist }
 
 class IpodBody extends StatefulWidget {
   const IpodBody({super.key});
@@ -58,6 +58,7 @@ class _IpodBodyState extends State<IpodBody> {
   int _overlaySongId = 0;
   int _overlayPlaylistIndex = 0;
   String _createPlaylistName = '';
+  String? _playlistToDelete;
   Timer? _overlayTimer;
 
   final List<String> _mainMenuItems = [
@@ -214,13 +215,15 @@ class _IpodBodyState extends State<IpodBody> {
 
     HapticFeedback.mediumImpact();
 
-    // Long-press on playlist → delete
+    // Long-press on playlist → confirm delete
     if (_screen == MenuScreen.playlists) {
       final names = provider.playlistNames;
       if (names.isEmpty || _selectedIndex >= names.length) return;
-      final name = names[_selectedIndex];
-      provider.deletePlaylist(name);
-      setState(() {});
+      setState(() {
+        _overlay = _OverlayType.confirmDeletePlaylist;
+        _playlistToDelete = names[_selectedIndex];
+        _overlayPlaylistIndex = 0; // Default to 'Cancelar'
+      });
       return;
     }
 
@@ -298,6 +301,14 @@ class _IpodBodyState extends State<IpodBody> {
     }
     if (_overlay == _OverlayType.createPlaylist) {
       _confirmCreatePlaylist(provider);
+      return;
+    }
+    if (_overlay == _OverlayType.confirmDeletePlaylist) {
+      if (_overlayPlaylistIndex == 1 && _playlistToDelete != null) {
+        provider.deletePlaylist(_playlistToDelete!);
+        setState(() {});
+      }
+      _dismissOverlay();
       return;
     }
 
@@ -416,6 +427,7 @@ class _IpodBodyState extends State<IpodBody> {
     setState(() {
       _overlay = _OverlayType.none;
       _createPlaylistName = '';
+      _playlistToDelete = null;
     });
   }
 
@@ -493,6 +505,8 @@ class _IpodBodyState extends State<IpodBody> {
         max = _songActions.length - 1;
       case _OverlayType.playlistPicker:
         max = provider.playlistNames.length; // +1 for "Criar Nova"
+      case _OverlayType.confirmDeletePlaylist:
+        max = 1;
       case _OverlayType.createPlaylist:
         return;
       default:
@@ -1001,6 +1015,8 @@ class _IpodBodyState extends State<IpodBody> {
                                 _buildPlaylistPickerOverlay(provider),
                               if (_overlay == _OverlayType.createPlaylist)
                                 _buildCreatePlaylistOverlay(provider),
+                              if (_overlay == _OverlayType.confirmDeletePlaylist)
+                                _buildConfirmDeletePlaylistOverlay(),
                             ],
                           ),
                         ),
@@ -1448,6 +1464,83 @@ class _IpodBodyState extends State<IpodBody> {
                 ),
               ),
             ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildConfirmDeletePlaylistOverlay() {
+    final options = ['Cancelar', 'Excluir'];
+    return Positioned(
+      left: 24,
+      right: 24,
+      top: 30,
+      bottom: 30,
+      child: Container(
+        decoration: BoxDecoration(
+          color: const Color(0xEC111122),
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: const Color(0xFF0071C5), width: 1.5),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.8),
+              blurRadius: 10,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Icon(
+              Icons.warning_amber_rounded,
+              color: Colors.redAccent,
+              size: 24,
+            ),
+            const SizedBox(height: 8),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: Text(
+                'Excluir "${_playlistToDelete ?? ''}"?',
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 10,
+                  fontWeight: FontWeight.bold,
+                  fontFamily: 'monospace',
+                ),
+              ),
+            ),
+            const SizedBox(height: 16),
+            ...List.generate(options.length, (i) {
+              final selected = i == _overlayPlaylistIndex;
+              final isDelete = i == 1;
+              return Container(
+                padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 16),
+                color: selected
+                    ? (isDelete
+                        ? Colors.redAccent.withValues(alpha: 0.2)
+                        : const Color(0xFF0071C5).withValues(alpha: 0.3))
+                    : Colors.transparent,
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Text(
+                      options[i],
+                      style: TextStyle(
+                        color: selected
+                            ? (isDelete ? Colors.redAccent : Colors.white)
+                            : const Color(0xFF87CEEB),
+                        fontSize: 10,
+                        fontWeight: selected ? FontWeight.bold : FontWeight.normal,
+                        fontFamily: 'monospace',
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            }),
           ],
         ),
       ),
