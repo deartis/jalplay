@@ -1175,8 +1175,8 @@ class _IpodBodyState extends State<IpodBody> {
     return Positioned(
       left: 24,
       right: 24,
-      top: 50,
-      bottom: 50,
+      top: 15,
+      bottom: 15,
       child: Container(
         decoration: BoxDecoration(
           color: const Color(0xEC111122),
@@ -1190,68 +1190,74 @@ class _IpodBodyState extends State<IpodBody> {
             ),
           ],
         ),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            const Text(
-              'Nova Playlist',
-              style: TextStyle(
-                color: Color(0xFF87CEEB),
-                fontSize: 11,
-                fontWeight: FontWeight.bold,
-                fontFamily: 'monospace',
-              ),
-            ),
-            const SizedBox(height: 16),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20),
-              child: TextField(
-                autofocus: true,
-                onChanged: (v) => setState(() => _createPlaylistName = v),
-                onSubmitted: (_) => _confirmCreatePlaylist(provider),
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 12,
-                  fontFamily: 'monospace',
-                ),
-                cursorColor: const Color(0xFF0071C5),
-                decoration: const InputDecoration(
-                  hintText: 'Nome da playlist',
-                  hintStyle: TextStyle(
-                    color: Color(0xFF4A90A4),
-                    fontSize: 11,
-                    fontFamily: 'monospace',
-                  ),
-                  enabledBorder: UnderlineInputBorder(
-                    borderSide: BorderSide(color: Color(0xFF0071C5)),
-                  ),
-                  focusedBorder: UnderlineInputBorder(
-                    borderSide: BorderSide(color: Color(0xFF00BFFF)),
-                  ),
-                ),
-              ),
-            ),
-            const SizedBox(height: 20),
-            GestureDetector(
-              onTap: () => _confirmCreatePlaylist(provider),
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 8),
-                decoration: BoxDecoration(
-                  color: const Color(0xFF0071C5),
-                  borderRadius: BorderRadius.circular(4),
-                ),
-                child: const Text(
-                  'CRIAR',
+        child: Center(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.symmetric(vertical: 8),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Text(
+                  'Nova Playlist',
                   style: TextStyle(
-                    color: Colors.white,
+                    color: Color(0xFF87CEEB),
                     fontSize: 11,
                     fontWeight: FontWeight.bold,
                     fontFamily: 'monospace',
                   ),
                 ),
-              ),
+                const SizedBox(height: 10),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 20),
+                  child: TextField(
+                    autofocus: true,
+                    onChanged: (v) => setState(() => _createPlaylistName = v),
+                    onSubmitted: (_) => _confirmCreatePlaylist(provider),
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 12,
+                      fontFamily: 'monospace',
+                    ),
+                    cursorColor: const Color(0xFF0071C5),
+                    decoration: const InputDecoration(
+                      hintText: 'Nome da playlist',
+                      hintStyle: TextStyle(
+                        color: Color(0xFF4A90A4),
+                        fontSize: 11,
+                        fontFamily: 'monospace',
+                      ),
+                      enabledBorder: UnderlineInputBorder(
+                        borderSide: BorderSide(color: Color(0xFF0071C5)),
+                      ),
+                      focusedBorder: UnderlineInputBorder(
+                        borderSide: BorderSide(color: Color(0xFF00BFFF)),
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                GestureDetector(
+                  onTap: () => _confirmCreatePlaylist(provider),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 8),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF0071C5),
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                    child: const Text(
+                      'CRIAR',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 11,
+                        fontWeight: FontWeight.bold,
+                        fontFamily: 'monospace',
+                      ),
+                    ),
+                  ),
+                ),
+              ],
             ),
-          ],
+          ),
         ),
       ),
     );
