@@ -27,7 +27,7 @@ enum MenuScreen {
   about,
 }
 
-enum _OverlayType { none, songActions, playlistPicker, createPlaylist, confirmDeletePlaylist }
+enum _OverlayType { none, songActions, playlistPicker, createPlaylist, confirmDeletePlaylist, confirmRemovePlaylistSong }
 
 class IpodBody extends StatefulWidget {
   const IpodBody({super.key});
@@ -59,6 +59,7 @@ class _IpodBodyState extends State<IpodBody> {
   int _overlayPlaylistIndex = 0;
   String _createPlaylistName = '';
   String? _playlistToDelete;
+  Song? _songToRemove;
   Timer? _overlayTimer;
 
   final List<String> _mainMenuItems = [
@@ -227,15 +228,17 @@ class _IpodBodyState extends State<IpodBody> {
       return;
     }
 
-    // Long-press on playlist song → remove
+    // Long-press on playlist song → confirm remove
     if (_screen == MenuScreen.playlistSongs) {
       final songs = _selectedPlaylist != null
           ? provider.getPlaylistSongs(_selectedPlaylist!)
           : <Song>[];
-      if (_selectedIndex >= songs.length) return;
-      final song = songs[_selectedIndex];
-      provider.removeSongFromPlaylist(_selectedPlaylist!, song.id);
-      setState(() {});
+      if (songs.isEmpty || _selectedIndex >= songs.length) return;
+      setState(() {
+        _overlay = _OverlayType.confirmRemovePlaylistSong;
+        _songToRemove = songs[_selectedIndex];
+        _overlayPlaylistIndex = 0; // Default to 'Cancelar'
+      });
       return;
     }
 
@@ -306,6 +309,14 @@ class _IpodBodyState extends State<IpodBody> {
     if (_overlay == _OverlayType.confirmDeletePlaylist) {
       if (_overlayPlaylistIndex == 1 && _playlistToDelete != null) {
         provider.deletePlaylist(_playlistToDelete!);
+        setState(() {});
+      }
+      _dismissOverlay();
+      return;
+    }
+    if (_overlay == _OverlayType.confirmRemovePlaylistSong) {
+      if (_overlayPlaylistIndex == 1 && _songToRemove != null && _selectedPlaylist != null) {
+        provider.removeSongFromPlaylist(_selectedPlaylist!, _songToRemove!.id);
         setState(() {});
       }
       _dismissOverlay();
@@ -428,6 +439,7 @@ class _IpodBodyState extends State<IpodBody> {
       _overlay = _OverlayType.none;
       _createPlaylistName = '';
       _playlistToDelete = null;
+      _songToRemove = null;
     });
   }
 
@@ -506,6 +518,7 @@ class _IpodBodyState extends State<IpodBody> {
       case _OverlayType.playlistPicker:
         max = provider.playlistNames.length; // +1 for "Criar Nova"
       case _OverlayType.confirmDeletePlaylist:
+      case _OverlayType.confirmRemovePlaylistSong:
         max = 1;
       case _OverlayType.createPlaylist:
         return;
@@ -1017,6 +1030,8 @@ class _IpodBodyState extends State<IpodBody> {
                                 _buildCreatePlaylistOverlay(provider),
                               if (_overlay == _OverlayType.confirmDeletePlaylist)
                                 _buildConfirmDeletePlaylistOverlay(),
+                              if (_overlay == _OverlayType.confirmRemovePlaylistSong)
+                                _buildConfirmRemoveSongOverlay(),
                             ],
                           ),
                         ),
@@ -1503,6 +1518,83 @@ class _IpodBodyState extends State<IpodBody> {
               padding: const EdgeInsets.symmetric(horizontal: 16),
               child: Text(
                 'Excluir "${_playlistToDelete ?? ''}"?',
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 10,
+                  fontWeight: FontWeight.bold,
+                  fontFamily: 'monospace',
+                ),
+              ),
+            ),
+            const SizedBox(height: 16),
+            ...List.generate(options.length, (i) {
+              final selected = i == _overlayPlaylistIndex;
+              final isDelete = i == 1;
+              return Container(
+                padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 16),
+                color: selected
+                    ? (isDelete
+                        ? Colors.redAccent.withValues(alpha: 0.2)
+                        : const Color(0xFF0071C5).withValues(alpha: 0.3))
+                    : Colors.transparent,
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Text(
+                      options[i],
+                      style: TextStyle(
+                        color: selected
+                            ? (isDelete ? Colors.redAccent : Colors.white)
+                            : const Color(0xFF87CEEB),
+                        fontSize: 10,
+                        fontWeight: selected ? FontWeight.bold : FontWeight.normal,
+                        fontFamily: 'monospace',
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            }),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildConfirmRemoveSongOverlay() {
+    final options = ['Cancelar', 'Remover'];
+    return Positioned(
+      left: 24,
+      right: 24,
+      top: 30,
+      bottom: 30,
+      child: Container(
+        decoration: BoxDecoration(
+          color: const Color(0xEC111122),
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: const Color(0xFF0071C5), width: 1.5),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.8),
+              blurRadius: 10,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Icon(
+              Icons.warning_amber_rounded,
+              color: Colors.redAccent,
+              size: 24,
+            ),
+            const SizedBox(height: 8),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: Text(
+                'Remover "${_songToRemove?.title ?? ''}" da playlist?',
                 textAlign: TextAlign.center,
                 style: const TextStyle(
                   color: Colors.white,
