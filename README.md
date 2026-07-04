@@ -121,6 +121,19 @@ lib/
 
 ---
 
+## ☕ Apoie o Projeto (Pague um Café)
+
+Se este projeto foi útil para você ou se você apoia a ideia de mantermos o reprodutor de mídia totalmente gratuito e sem anúncios, sinta-se à vontade para me pagar um café!
+
+**Chave Pix (Aleatória):**
+```text
+7b16efd5-bf9d-438c-b48c-e30419704613
+```
+
+Qualquer apoio é super bem-vindo! ☕✨
+
+---
+
 ## 📄 Licença
 
 Este projeto está sob licença livre. Sinta-se à vontade para clonar, estudar e customizar o código!

@@ -574,7 +574,7 @@ class _IpodBodyState extends State<IpodBody> {
         Expanded(
           child: Center(
             child: Padding(
-              padding: const EdgeInsets.all(20),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
@@ -582,38 +582,66 @@ class _IpodBodyState extends State<IpodBody> {
                     'JALPlay',
                     style: TextStyle(
                       color: Color(0xFF0071C5),
-                      fontSize: 22,
+                      fontSize: 20,
                       fontWeight: FontWeight.bold,
                       fontFamily: 'monospace',
                       letterSpacing: 4,
                     ),
                   ),
-                  const SizedBox(height: 8),
+                  const SizedBox(height: 4),
                   const Text(
                     'v1.0.0',
                     style: TextStyle(
                       color: Color(0xFF4A90A4),
-                      fontSize: 11,
+                      fontSize: 10,
                       fontFamily: 'monospace',
                     ),
                   ),
-                  const SizedBox(height: 20),
+                  const SizedBox(height: 10),
                   const Text(
                     'Reprodutor MP3 estilo iPod\npara Android',
                     textAlign: TextAlign.center,
                     style: TextStyle(
                       color: Color(0xFF87CEEB),
-                      fontSize: 10,
+                      fontSize: 9,
                       fontFamily: 'monospace',
-                      height: 1.6,
+                      height: 1.4,
                     ),
                   ),
-                  const SizedBox(height: 30),
+                  const SizedBox(height: 12),
+                  const Text(
+                    '☕ Pague um café (PIX):',
+                    style: TextStyle(
+                      color: Color(0xFF00BFFF),
+                      fontSize: 9,
+                      fontWeight: FontWeight.bold,
+                      fontFamily: 'monospace',
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF0F3460),
+                      borderRadius: BorderRadius.circular(4),
+                      border: Border.all(color: const Color(0xFF0071C5), width: 0.8),
+                    ),
+                    child: const SelectableText(
+                      '7b16efd5-bf9d-438c-b48c-e30419704613',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 8,
+                        fontFamily: 'monospace',
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
                   const Text(
                     'Feito com Flutter & just_audio',
                     style: TextStyle(
                       color: Color(0xFF4A90A4),
-                      fontSize: 9,
+                      fontSize: 8,
                       fontFamily: 'monospace',
                     ),
                   ),
