@@ -425,6 +425,11 @@ class _IpodBodyState extends State<IpodBody> {
       if (_overlay == _OverlayType.playlistPicker ||
           _overlay == _OverlayType.createPlaylist) {
         setState(() => _overlay = _OverlayType.songActions);
+        // Restart the 10-second timer when returning to main actions list
+        _overlayTimer?.cancel();
+        _overlayTimer = Timer(const Duration(seconds: 10), () {
+          if (mounted) setState(() => _overlay = _OverlayType.none);
+        });
         return;
       }
       _dismissOverlay();
@@ -450,6 +455,7 @@ class _IpodBodyState extends State<IpodBody> {
         _showFavoriteFeedback(provider.isFavorite(_overlaySongId));
         _dismissOverlay();
       case 1: // Adicionar à Playlist
+        _overlayTimer?.cancel(); // Cancel timer so it doesn't close while choosing playlist
         setState(() {
           _overlay = _OverlayType.playlistPicker;
           _overlayPlaylistIndex = 0;
@@ -464,6 +470,7 @@ class _IpodBodyState extends State<IpodBody> {
       _dismissOverlay();
     } else {
       // "Criar Nova..." option
+      _overlayTimer?.cancel(); // Cancel timer so it doesn't close while typing playlist name
       setState(() {
         _overlay = _OverlayType.createPlaylist;
         _createPlaylistName = '';
