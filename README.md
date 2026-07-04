@@ -113,6 +113,12 @@ lib/
 └── main.dart          # Inicialização das configurações do app
 ```
 
+## 🚫 Sem Anúncios (No Ads)
+
+> [!IMPORTANT]
+> **Por favor, não adicione propagandas ou anúncios neste projeto.**
+> O JALPlay nasceu justamente do desejo de ter um reprodutor de música limpo, focado na experiência do usuário e livre de anúncios irritantes ou interrupções comerciais. Se você for criar um fork ou distribuir uma versão deste aplicativo, **mantenha-o 100% gratuito e livre de anúncios**.
+
 ---
 
 ## 📄 Licença
