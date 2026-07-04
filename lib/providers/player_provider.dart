@@ -5,6 +5,7 @@ import 'package:audio_service/audio_service.dart';
 import 'package:flutter/material.dart';
 import 'package:on_audio_query/on_audio_query.dart';
 import 'package:permission_handler/permission_handler.dart';
+import '../models/playlist.dart';
 import '../models/song.dart';
 import '../services/audio_handler.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -25,6 +26,7 @@ class PlayerProvider extends ChangeNotifier {
   final OnAudioQuery _audioQuery = OnAudioQuery();
 
   List<Song> _songs = [];
+  List<Song> _currentQueue = [];
   int _currentIndex = -1;
   PlayerState _playerState = PlayerState.stopped;
   Duration _position = Duration.zero;
@@ -45,12 +47,15 @@ class PlayerProvider extends ChangeNotifier {
   Timer? _sleepTimerInstance;
   SongSortField _sortField = SongSortField.title;
 
+  // Playlists
+  List<Playlist> _playlists = [];
+
 
   // Getters
   List<Song> get songs => _songs;
   int get currentIndex => _currentIndex;
-  Song? get currentSong => _currentIndex >= 0 && _currentIndex < _songs.length
-      ? _songs[_currentIndex]
+  Song? get currentSong => _currentIndex >= 0 && _currentIndex < _currentQueue.length
+      ? _currentQueue[_currentIndex]
       : null;
   PlayerState get playerState => _playerState;
   Duration get position => _position;
@@ -68,6 +73,19 @@ class PlayerProvider extends ChangeNotifier {
   SleepTimerDuration get sleepTimer => _sleepTimer;
   bool get isSleepTimerActive => _sleepTimerInstance != null;
   SongSortField get sortField => _sortField;
+
+  // Playlists
+  List<Playlist> get playlists => List.unmodifiable(_playlists);
+  List<String> get playlistNames => _playlists.map((p) => p.name).toList();
+  bool hasPlaylist(String name) => _playlists.any((p) => p.name == name);
+  List<int> getPlaylistSongIds(String name) =>
+      _playlists.firstWhere((p) => p.name == name).songIds;
+  List<Song> getPlaylistSongs(String name) {
+    final ids = getPlaylistSongIds(name).toSet();
+    return _songs.where((s) => ids.contains(s.id)).toList();
+  }
+  bool isSongInPlaylist(String name, int songId) =>
+      getPlaylistSongIds(name).contains(songId);
 
   double get progress {
     if (_duration.inMilliseconds == 0) return 0.0;
@@ -131,7 +149,7 @@ class PlayerProvider extends ChangeNotifier {
     });
 
     _handler.player.currentIndexStream.listen((index) {
-      if (index != null && index >= 0 && index < _songs.length) {
+      if (index != null && index >= 0 && index < _currentQueue.length) {
         _currentIndex = index;
         notifyListeners();
         _saveState();
@@ -221,6 +239,7 @@ class PlayerProvider extends ChangeNotifier {
     _favoriteSongIds = [];
     _volume = 1.0;
     _artworkCache.clear();
+    _playlists = [];
 
     await _handler.setShuffleMode(AudioServiceShuffleMode.none);
     await _handler.setRepeatMode(AudioServiceRepeatMode.none);
@@ -233,6 +252,55 @@ class PlayerProvider extends ChangeNotifier {
 
     await _sortAndRebuild();
     notifyListeners();
+  }
+
+  // ─── Playlists ───
+
+  void createPlaylist(String name) {
+    if (name.trim().isEmpty) return;
+    if (hasPlaylist(name)) return;
+    _playlists.add(Playlist(name: name.trim(), songIds: []));
+    notifyListeners();
+    _savePrefs();
+  }
+
+  void deletePlaylist(String name) {
+    _playlists.removeWhere((p) => p.name == name);
+    notifyListeners();
+    _savePrefs();
+  }
+
+  void addSongToPlaylist(String name, int songId) {
+    final idx = _playlists.indexWhere((p) => p.name == name);
+    if (idx < 0) return;
+    if (_playlists[idx].songIds.contains(songId)) return;
+    final updated = _playlists[idx].copyWith(
+      songIds: [..._playlists[idx].songIds, songId],
+    );
+    _playlists[idx] = updated;
+    notifyListeners();
+    _savePrefs();
+  }
+
+  void removeSongFromPlaylist(String name, int songId) {
+    final idx = _playlists.indexWhere((p) => p.name == name);
+    if (idx < 0) return;
+    final updated = _playlists[idx].copyWith(
+      songIds: _playlists[idx].songIds.where((id) => id != songId).toList(),
+    );
+    _playlists[idx] = updated;
+    notifyListeners();
+    _savePrefs();
+  }
+
+  void renamePlaylist(String oldName, String newName) {
+    if (newName.trim().isEmpty) return;
+    if (oldName == newName) return;
+    final idx = _playlists.indexWhere((p) => p.name == oldName);
+    if (idx < 0) return;
+    _playlists[idx] = _playlists[idx].copyWith(name: newName.trim());
+    notifyListeners();
+    _savePrefs();
   }
 
   // ─── Permission ───
@@ -320,6 +388,7 @@ class PlayerProvider extends ChangeNotifier {
   }
 
   Future<void> _rebuildQueue() async {
+    _currentQueue = List.from(_songs);
     final mediaItems = _songs
         .map(
           (s) => MediaItem(
@@ -356,8 +425,37 @@ class PlayerProvider extends ChangeNotifier {
 
   // ─── Playback controls ───
 
-  Future<void> playSong(int index) async {
-    if (index < 0 || index >= _songs.length) return;
+  Future<void> playSong(int index, {List<Song>? queue}) async {
+    final targetQueue = queue ?? _songs;
+    if (index < 0 || index >= targetQueue.length) return;
+
+    bool queueChanged = _currentQueue.length != targetQueue.length;
+    if (!queueChanged) {
+      for (int i = 0; i < targetQueue.length; i++) {
+        if (_currentQueue[i].id != targetQueue[i].id) {
+          queueChanged = true;
+          break;
+        }
+      }
+    }
+
+    if (queueChanged) {
+      _currentQueue = List.from(targetQueue);
+      final mediaItems = _currentQueue
+          .map(
+            (s) => MediaItem(
+              id: s.id.toString(),
+              title: s.title,
+              artist: s.artist,
+              album: s.album,
+              duration: Duration(milliseconds: s.duration),
+              extras: {'filePath': s.data ?? ''},
+            ),
+          )
+          .toList();
+      await _handler.updateQueue(mediaItems);
+    }
+
     _currentIndex = index;
     await _handler.playIndex(index);
     notifyListeners();
@@ -493,6 +591,8 @@ class PlayerProvider extends ChangeNotifier {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString('jalplay_sleep_timer', _sleepTimer.name);
       await prefs.setString('jalplay_sort_field', _sortField.name);
+      await prefs.setString(
+        'jalplay_playlists', Playlist.encodeList(_playlists));
     } catch (e) {
       debugPrint('Error saving prefs: $e');
     }
@@ -528,6 +628,12 @@ class PlayerProvider extends ChangeNotifier {
           (e) => e.name == savedSort,
           orElse: () => SongSortField.title,
         );
+      }
+
+      // Playlists
+      final savedPlaylists = prefs.getString('jalplay_playlists');
+      if (savedPlaylists != null && savedPlaylists.isNotEmpty) {
+        _playlists = Playlist.decodeList(savedPlaylists);
       }
 
       // Favorites

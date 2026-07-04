@@ -20,10 +20,14 @@ enum MenuScreen {
   search,
   nowPlaying,
   favorites,
+  playlists,
+  playlistSongs,
   settings,
   settingsOptions,
   about,
 }
+
+enum _OverlayType { none, songActions, playlistPicker, createPlaylist }
 
 class IpodBody extends StatefulWidget {
   const IpodBody({super.key});
@@ -45,8 +49,16 @@ class _IpodBodyState extends State<IpodBody> {
   bool _slidingForward = true;
 
   // Settings state
-  String? _settingsCategory; // sleepTimer, equalizer, sorting, crossfade
+  String? _settingsCategory;
   bool _showConfirmReset = false;
+
+  // Playlist state
+  String? _selectedPlaylist;
+  _OverlayType _overlay = _OverlayType.none;
+  int _overlaySongId = 0;
+  int _overlayPlaylistIndex = 0;
+  String _createPlaylistName = '';
+  Timer? _overlayTimer;
 
   final List<String> _mainMenuItems = [
     'Música',
@@ -59,7 +71,8 @@ class _IpodBodyState extends State<IpodBody> {
     'Todas as Músicas',
     'Artistas',
     'Álbuns',
-    'Favoritos'
+    'Favoritos',
+    'Playlists',
   ];
   final List<String> _settingsMenuItems = [
     'Temporizador',
@@ -123,6 +136,16 @@ class _IpodBodyState extends State<IpodBody> {
       case MenuScreen.favorites:
         final count = provider.favoriteSongs.length;
         return count == 0 ? 0 : count - 1;
+      case MenuScreen.playlists: {
+        final names = provider.playlistNames;
+        return names.isEmpty ? 0 : names.length - 1;
+      }
+      case MenuScreen.playlistSongs: {
+        final songs = _selectedPlaylist != null
+            ? provider.getPlaylistSongs(_selectedPlaylist!)
+            : <Song>[];
+        return songs.isEmpty ? 0 : songs.length - 1;
+      }
       case MenuScreen.settings:
         return _settingsMenuItems.length - 1;
       case MenuScreen.settingsOptions:
@@ -139,6 +162,7 @@ class _IpodBodyState extends State<IpodBody> {
   void dispose() {
     _volumeOverlayTimer?.cancel();
     _favFeedbackTimer?.cancel();
+    _overlayTimer?.cancel();
     super.dispose();
   }
 
@@ -174,6 +198,12 @@ class _IpodBodyState extends State<IpodBody> {
         final songs = provider.favoriteSongs;
         if (songs.isEmpty) return null;
         return songs[_selectedIndex];
+      case MenuScreen.playlistSongs: {
+        if (_selectedPlaylist == null) return null;
+        final songs = provider.getPlaylistSongs(_selectedPlaylist!);
+        if (songs.isEmpty) return null;
+        return songs[_selectedIndex];
+      }
       default:
         return null;
     }
@@ -181,21 +211,54 @@ class _IpodBodyState extends State<IpodBody> {
 
   void _onCenterLongPress() {
     final provider = context.read<PlayerProvider>();
-    final song = _getSelectedSong(provider);
-    if (song != null) {
-      provider.toggleFavorite(song.id);
 
-      HapticFeedback.mediumImpact();
-      Future.delayed(const Duration(milliseconds: 100), () {
-        HapticFeedback.mediumImpact();
-      });
+    HapticFeedback.mediumImpact();
 
-      _showFavoriteFeedback(provider.isFavorite(song.id));
+    // Long-press on playlist → delete
+    if (_screen == MenuScreen.playlists) {
+      final names = provider.playlistNames;
+      if (names.isEmpty || _selectedIndex >= names.length) return;
+      final name = names[_selectedIndex];
+      provider.deletePlaylist(name);
+      setState(() {});
+      return;
     }
+
+    // Long-press on playlist song → remove
+    if (_screen == MenuScreen.playlistSongs) {
+      final songs = _selectedPlaylist != null
+          ? provider.getPlaylistSongs(_selectedPlaylist!)
+          : <Song>[];
+      if (_selectedIndex >= songs.length) return;
+      final song = songs[_selectedIndex];
+      provider.removeSongFromPlaylist(_selectedPlaylist!, song.id);
+      setState(() {});
+      return;
+    }
+
+    final song = _getSelectedSong(provider);
+    if (song == null) return;
+
+    // Show song actions overlay
+    setState(() {
+      _overlay = _OverlayType.songActions;
+      _overlaySongId = song.id;
+      _overlayPlaylistIndex = 0;
+    });
+    _overlayTimer?.cancel();
+    _overlayTimer = Timer(const Duration(seconds: 10), () {
+      if (mounted) setState(() => _overlay = _OverlayType.none);
+    });
   }
 
   void _onScroll(double delta) {
     final provider = context.read<PlayerProvider>();
+
+    if (_overlay != _OverlayType.none) {
+      _scrollOverlay(delta);
+      return;
+    }
+
     if (_screen == MenuScreen.nowPlaying && !_showConfirmReset) {
       final newVolume = (provider.volume + (delta * 0.05)).clamp(0.0, 1.0);
       provider.setVolume(newVolume);
@@ -223,6 +286,21 @@ class _IpodBodyState extends State<IpodBody> {
 
   void _onCenterPress() {
     final provider = context.read<PlayerProvider>();
+
+    // Handle overlay selections
+    if (_overlay == _OverlayType.songActions) {
+      _selectSongAction(_overlayPlaylistIndex, provider);
+      return;
+    }
+    if (_overlay == _OverlayType.playlistPicker) {
+      _selectPlaylistForSong(_overlayPlaylistIndex, provider);
+      return;
+    }
+    if (_overlay == _OverlayType.createPlaylist) {
+      _confirmCreatePlaylist(provider);
+      return;
+    }
+
     switch (_screen) {
       case MenuScreen.main:
         _selectMainMenuItem(_selectedIndex, provider);
@@ -232,33 +310,29 @@ class _IpodBodyState extends State<IpodBody> {
         provider.playSong(_selectedIndex);
         _navigateTo(MenuScreen.nowPlaying);
       case MenuScreen.artists:
+        if (provider.artists.isEmpty) break;
         _selectedArtist = provider.artists[_selectedIndex];
         _navigateTo(MenuScreen.artistSongs);
       case MenuScreen.artistSongs:
-        final songs = provider.songsByArtist(_selectedArtist!);
-        final globalIdx = provider.songs.indexWhere(
-          (s) => s.id == songs[_selectedIndex].id,
-        );
-        provider.playSong(globalIdx >= 0 ? globalIdx : _selectedIndex);
-        _navigateTo(MenuScreen.nowPlaying);
+        _playSelectedSong(provider.songsByArtist(_selectedArtist!), provider);
       case MenuScreen.albums:
+        if (provider.albums.isEmpty) break;
         _selectedAlbum = provider.albums[_selectedIndex];
         _navigateTo(MenuScreen.albumSongs);
       case MenuScreen.albumSongs:
-        final songs = provider.songsByAlbum(_selectedAlbum!);
-        final globalIdx = provider.songs.indexWhere(
-          (s) => s.id == songs[_selectedIndex].id,
-        );
-        provider.playSong(globalIdx >= 0 ? globalIdx : _selectedIndex);
-        _navigateTo(MenuScreen.nowPlaying);
+        _playSelectedSong(provider.songsByAlbum(_selectedAlbum!), provider);
       case MenuScreen.favorites:
-        final songs = provider.favoriteSongs;
-        if (songs.isEmpty) break;
-        final globalIdx = provider.songs.indexWhere(
-          (s) => s.id == songs[_selectedIndex].id,
-        );
-        provider.playSong(globalIdx >= 0 ? globalIdx : _selectedIndex);
-        _navigateTo(MenuScreen.nowPlaying);
+        _playSelectedSong(provider.favoriteSongs, provider);
+      case MenuScreen.playlists:
+        if (provider.playlistNames.isEmpty) break;
+        _selectedPlaylist = provider.playlistNames[_selectedIndex];
+        _navigateTo(MenuScreen.playlistSongs);
+      case MenuScreen.playlistSongs: {
+        if (_selectedPlaylist == null) break;
+        final songs = provider.getPlaylistSongs(_selectedPlaylist!);
+        _playSelectedSong(songs, provider);
+        break;
+      }
       case MenuScreen.settings:
         _selectSettingsMenuItem(_selectedIndex, provider);
       case MenuScreen.settingsOptions:
@@ -268,6 +342,12 @@ class _IpodBodyState extends State<IpodBody> {
       case MenuScreen.nowPlaying:
         break;
     }
+  }
+
+  void _playSelectedSong(List<Song> songs, PlayerProvider provider) {
+    if (songs.isEmpty) return;
+    provider.playSong(_selectedIndex, queue: songs);
+    _navigateTo(MenuScreen.nowPlaying);
   }
 
   void _selectMainMenuItem(int index, PlayerProvider provider) {
@@ -297,6 +377,8 @@ class _IpodBodyState extends State<IpodBody> {
         _navigateTo(MenuScreen.albums);
       case 3:
         _navigateTo(MenuScreen.favorites);
+      case 4:
+        _navigateTo(MenuScreen.playlists);
     }
   }
 
@@ -329,7 +411,25 @@ class _IpodBodyState extends State<IpodBody> {
     _navigateBack();
   }
 
+  void _dismissOverlay() {
+    _overlayTimer?.cancel();
+    setState(() {
+      _overlay = _OverlayType.none;
+      _createPlaylistName = '';
+    });
+  }
+
   void _onMenu() {
+    if (_overlay != _OverlayType.none) {
+      // Go back one overlay level
+      if (_overlay == _OverlayType.playlistPicker ||
+          _overlay == _OverlayType.createPlaylist) {
+        setState(() => _overlay = _OverlayType.songActions);
+        return;
+      }
+      _dismissOverlay();
+      return;
+    }
     if (_showConfirmReset) {
       setState(() => _showConfirmReset = false);
       return;
@@ -337,6 +437,64 @@ class _IpodBodyState extends State<IpodBody> {
     if (_history.isNotEmpty) {
       _navigateBack();
     }
+  }
+
+  // ─── Song Actions ───
+
+  static const _songActions = ['Favoritar', 'Adicionar à Playlist...'];
+
+  void _selectSongAction(int index, PlayerProvider provider) {
+    switch (index) {
+      case 0: // Favoritar
+        provider.toggleFavorite(_overlaySongId);
+        _showFavoriteFeedback(provider.isFavorite(_overlaySongId));
+        _dismissOverlay();
+      case 1: // Adicionar à Playlist
+        setState(() {
+          _overlay = _OverlayType.playlistPicker;
+          _overlayPlaylistIndex = 0;
+        });
+    }
+  }
+
+  void _selectPlaylistForSong(int index, PlayerProvider provider) {
+    final names = provider.playlistNames;
+    if (index < names.length) {
+      provider.addSongToPlaylist(names[index], _overlaySongId);
+      _dismissOverlay();
+    } else {
+      // "Criar Nova..." option
+      setState(() {
+        _overlay = _OverlayType.createPlaylist;
+        _createPlaylistName = '';
+      });
+    }
+  }
+
+  void _confirmCreatePlaylist(PlayerProvider provider) {
+    if (_createPlaylistName.trim().isEmpty) return;
+    provider.createPlaylist(_createPlaylistName.trim());
+    provider.addSongToPlaylist(_createPlaylistName.trim(), _overlaySongId);
+    _dismissOverlay();
+  }
+
+  void _scrollOverlay(double delta) {
+    final provider = context.read<PlayerProvider>();
+    int max;
+    switch (_overlay) {
+      case _OverlayType.songActions:
+        max = _songActions.length - 1;
+      case _OverlayType.playlistPicker:
+        max = provider.playlistNames.length; // +1 for "Criar Nova"
+      case _OverlayType.createPlaylist:
+        return;
+      default:
+        return;
+    }
+    setState(() {
+      _overlayPlaylistIndex =
+          (_overlayPlaylistIndex + delta.round()).clamp(0, max);
+    });
   }
 
   int _selectedOptionIndex(PlayerProvider provider) {
@@ -443,6 +601,48 @@ class _IpodBodyState extends State<IpodBody> {
               provider.currentSong?.id == songs[i].id &&
               provider.isPlaying,
         );
+
+      case MenuScreen.playlists: {
+        final names = provider.playlistNames;
+        return MenuList(
+          key: const ValueKey('playlists'),
+          title: 'Playlists',
+          items: names.isEmpty ? ['Nenhuma playlist'] : names,
+          selectedIndex: _selectedIndex,
+          onSelect: (i) {
+            if (names.isEmpty) return;
+            setState(() => _selectedIndex = i);
+            _onCenterPress();
+          },
+        );
+      }
+
+      case MenuScreen.playlistSongs: {
+        final songs = _selectedPlaylist != null
+            ? provider.getPlaylistSongs(_selectedPlaylist!)
+            : <Song>[];
+        return MenuList(
+          key: ValueKey('playlistSongs_$_selectedPlaylist'),
+          title: _selectedPlaylist ?? 'Playlist',
+          items: songs.isEmpty
+              ? ['Nenhuma música na playlist']
+              : songs.map((s) => s.title).toList(),
+          subtitles: songs.isEmpty
+              ? null
+              : songs.map((s) => s.artist).toList(),
+          selectedIndex: _selectedIndex,
+          onSelect: (i) {
+            if (songs.isEmpty) return;
+            setState(() => _selectedIndex = i);
+            _onCenterPress();
+          },
+          isPlaying: (i) =>
+              songs.isNotEmpty &&
+              i < songs.length &&
+              provider.currentSong?.id == songs[i].id &&
+              provider.isPlaying,
+        );
+      }
 
       case MenuScreen.albums:
         return MenuList(
@@ -788,6 +988,12 @@ class _IpodBodyState extends State<IpodBody> {
                                 _buildFavFeedbackOverlay(),
                               if (_showConfirmReset)
                                 _buildResetConfirmOverlay(provider),
+                              if (_overlay == _OverlayType.songActions)
+                                _buildSongActionsOverlay(),
+                              if (_overlay == _OverlayType.playlistPicker)
+                                _buildPlaylistPickerOverlay(provider),
+                              if (_overlay == _OverlayType.createPlaylist)
+                                _buildCreatePlaylistOverlay(provider),
                             ],
                           ),
                         ),
@@ -826,6 +1032,221 @@ class _IpodBodyState extends State<IpodBody> {
           ),
         );
       },
+    );
+  }
+
+  // ─── Playlist Overlays ───
+
+  Widget _buildSongActionsOverlay() {
+    final items = _songActions;
+    return Positioned(
+      left: 24,
+      right: 24,
+      top: 30,
+      bottom: 30,
+      child: Container(
+        decoration: BoxDecoration(
+          color: const Color(0xEC111122),
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: const Color(0xFF0071C5), width: 1.5),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.8),
+              blurRadius: 10,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Text(
+              'Ações',
+              style: TextStyle(
+                color: Color(0xFF87CEEB),
+                fontSize: 11,
+                fontWeight: FontWeight.bold,
+                fontFamily: 'monospace',
+              ),
+            ),
+            const SizedBox(height: 16),
+            ...List.generate(items.length, (i) {
+              final selected = i == _overlayPlaylistIndex;
+              return Container(
+                padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 16),
+                color: selected
+                    ? const Color(0xFF0071C5).withValues(alpha: 0.3)
+                    : Colors.transparent,
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Text(
+                      items[i],
+                      style: TextStyle(
+                        color: selected ? Colors.white : const Color(0xFF87CEEB),
+                        fontSize: 11,
+                        fontWeight: selected ? FontWeight.bold : FontWeight.normal,
+                        fontFamily: 'monospace',
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            }),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildPlaylistPickerOverlay(PlayerProvider provider) {
+    final names = provider.playlistNames;
+    final items = [...names, 'Criar Nova...'];
+    return Positioned(
+      left: 24,
+      right: 24,
+      top: 30,
+      bottom: 30,
+      child: Container(
+        decoration: BoxDecoration(
+          color: const Color(0xEC111122),
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: const Color(0xFF0071C5), width: 1.5),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.8),
+              blurRadius: 10,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Padding(
+              padding: EdgeInsets.only(bottom: 12),
+              child: Text(
+                'Adicionar à Playlist',
+                style: TextStyle(
+                  color: Color(0xFF87CEEB),
+                  fontSize: 11,
+                  fontWeight: FontWeight.bold,
+                  fontFamily: 'monospace',
+                ),
+              ),
+            ),
+            Expanded(
+              child: ListView(
+                padding: EdgeInsets.zero,
+                children: List.generate(items.length, (i) {
+                  final selected = i == _overlayPlaylistIndex;
+                  return Container(
+                    padding: const EdgeInsets.symmetric(vertical: 5, horizontal: 16),
+                    color: selected
+                        ? const Color(0xFF0071C5).withValues(alpha: 0.3)
+                        : Colors.transparent,
+                    child: Text(
+                      items[i],
+                      style: TextStyle(
+                        color: selected ? Colors.white : const Color(0xFF87CEEB),
+                        fontSize: 10,
+                        fontWeight: selected ? FontWeight.bold : FontWeight.normal,
+                        fontFamily: 'monospace',
+                      ),
+                    ),
+                  );
+                }),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildCreatePlaylistOverlay(PlayerProvider provider) {
+    return Positioned(
+      left: 24,
+      right: 24,
+      top: 50,
+      bottom: 50,
+      child: Container(
+        decoration: BoxDecoration(
+          color: const Color(0xEC111122),
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: const Color(0xFF0071C5), width: 1.5),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.8),
+              blurRadius: 10,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Text(
+              'Nova Playlist',
+              style: TextStyle(
+                color: Color(0xFF87CEEB),
+                fontSize: 11,
+                fontWeight: FontWeight.bold,
+                fontFamily: 'monospace',
+              ),
+            ),
+            const SizedBox(height: 16),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20),
+              child: TextField(
+                autofocus: true,
+                onChanged: (v) => setState(() => _createPlaylistName = v),
+                onSubmitted: (_) => _confirmCreatePlaylist(provider),
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 12,
+                  fontFamily: 'monospace',
+                ),
+                cursorColor: const Color(0xFF0071C5),
+                decoration: const InputDecoration(
+                  hintText: 'Nome da playlist',
+                  hintStyle: TextStyle(
+                    color: Color(0xFF4A90A4),
+                    fontSize: 11,
+                    fontFamily: 'monospace',
+                  ),
+                  enabledBorder: UnderlineInputBorder(
+                    borderSide: BorderSide(color: Color(0xFF0071C5)),
+                  ),
+                  focusedBorder: UnderlineInputBorder(
+                    borderSide: BorderSide(color: Color(0xFF00BFFF)),
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(height: 20),
+            GestureDetector(
+              onTap: () => _confirmCreatePlaylist(provider),
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 8),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF0071C5),
+                  borderRadius: BorderRadius.circular(4),
+                ),
+                child: const Text(
+                  'CRIAR',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 11,
+                    fontWeight: FontWeight.bold,
+                    fontFamily: 'monospace',
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 
