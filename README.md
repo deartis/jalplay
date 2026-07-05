@@ -30,10 +30,25 @@ O projeto foi construído usando **Flutter** e utiliza as melhores práticas de 
 
 ## ✨ Principais Funcionalidades
 
+- **🎨 Temas de Casing do iPod & Display Harmonizado**:
+  - Personalize o visual completo do player escolhendo entre 5 temas icônicos diretamente no menu de Ajustes:
+    - **Clássico (Prata)**: Visual clássico de metal escovado com display azul metálico.
+    - **Grafite (Preto)**: Gabinete preto-cinza escuro com display de terminal de linha estilo matriz verde neon retro.
+    - **Azul Cobalto**: Tons combinados de azul cobalto de alta tecnologia no chassis e tela.
+    - **Rosa Pink**: Estilo pop fashion vibrante em rosa choque.
+    - **Edição Especial U2**: Chassis preto escovado absoluto, click wheel preta, botão central vermelho brilhante e display vermelho de alto contraste.
+
+- **📊 Visualizador de Áudio Retro (LCD)**:
+  - Um analisador de espectro de áudio simulado com 15 barras clássicas na tela "Tocando Agora" que dançam e pulam ao ritmo da música em execução e deitam suavemente quando pausada.
+
+- **💾 Restauração e Auto-Seleção Inteligente**:
+  - **Lembrar Última Música**: O app lembra a última música tocada e a posição exata da reprodução, abrindo diretamente na tela "Tocando Agora" na inicialização se houver estado salvo.
+  - **Destaque Dinâmico**: Ao entrar em listas de músicas ("Todas as Músicas", "Artistas", etc.), a música tocando é automaticamente selecionada e mantida centralizada e visível no display com rolagem automática inteligente.
+
 - **🎛️ Click Wheel Interativa**:
   - **Deslizar Rotativo**: Deslize o dedo ao redor da roda para navegar por listas de reprodução ou ajustar o volume da música em tempo real.
   - **Feedback Tátil**: Vibrações dinâmicas micro-calculadas ao passar por itens da lista para simular a sensação da roda mecânica original.
-  - **Menu e Botões de Mídia**: Botões físicos de MENU, ⏮ (Anterior), ⏭ (Próxima) e ▶II (Play/Pause) desenhados de forma vetorial e responsiva no canvas.
+  - **Menu e Botões de Mídia**: Botões físicos de MENU, ⏮ (Anterior), ⏭ (Próxima) e ▶II (Play/Pause) desenhados de forma vetorial e responsiva no canvas adaptáveis às cores do tema ativo.
   - **Botão Central**: Toque rápido para selecionar/entrar em menus e toque longo para favoritar a música atual.
   
 - **🎵 Reprodutor de Áudio Robusto**:
@@ -42,7 +57,7 @@ O projeto foi construído usando **Flutter** e utiliza as melhores práticas de 
   - Suporte a Album Art (capas das músicas) dinâmico com efeito giratório na tela "Now Playing".
   
 - **📟 Tela LCD Estilizada**:
-  - Menu clássico em lista deslizante e transições dinâmicas.
+  - Menu clássico em lista deslizante com transições dinâmicas e cores adaptáveis ao tema de chassis ativo.
   - Painel de reprodução detalhado contendo barra de progresso interativa, indicador de bateria dinâmico, modos de repetição e shuffle.
   - Mini-player na parte inferior da tela LCD durante a navegação em outros menus.
   - Barra de volume com overlay dinâmico.
