@@ -836,4 +836,20 @@ const Map<String, IpodThemeData> ipodThemes = {
     darkAccent: Color(0xFF4A0000),
     subtitleColor: Color(0xFFFF6666),
   ),
+  'purple': IpodThemeData(
+    bodyGradient: [Color(0xFF6A1B9A), Color(0xFF4A148C), Color(0xFF311B92)],
+    wheelGradient: [Color(0xFFEDE7F6), Color(0xFFD1C4E9), Color(0xFFB39DDB)],
+    wheelLabelColor: Color(0xFF4A148C),
+    wheelCenterGradient: [
+      Color(0xFFEDE7F6),
+      Color(0xFFB39DDB),
+      Color(0xFF9575CD),
+    ],
+    screenBg: Color(0xFF1C0D2B),
+    screenBgAlt: Color(0xFF13071F),
+    primary: Color(0xFF8E24AA),
+    accent: Color(0xFFE040FB),
+    darkAccent: Color(0xFF3A0D5C),
+    subtitleColor: Color(0xFFD1C4E9),
+  ),
 };

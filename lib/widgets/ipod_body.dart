@@ -90,7 +90,7 @@ class _IpodBodyState extends State<IpodBody> {
   final Map<String, List<String>> _settingsOptions = {
     'sleepTimer': sleepTimerLabels,
     'sorting': sortFieldLabels,
-    'ipodTheme': ['Clássico', 'Grafite', 'Azul Cobalto', 'Rosa Pink', 'U2 Edition'],
+    'ipodTheme': ['Clássico', 'Grafite', 'Azul Cobalto', 'Rosa Pink', 'U2 Edition', 'Roxo Ametista'],
   };
 
   bool _showFavFeedback = false;
@@ -492,7 +492,7 @@ class _IpodBodyState extends State<IpodBody> {
     }
   }
 
-  static const _themeKeys = ['classic', 'charcoal', 'cobalt', 'rose', 'u2'];
+  static const _themeKeys = ['classic', 'charcoal', 'cobalt', 'rose', 'u2', 'purple'];
 
   void _selectSettingsMenuItem(int index, PlayerProvider provider) {
     switch (index) {
