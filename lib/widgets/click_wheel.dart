@@ -13,6 +13,9 @@ class ClickWheel extends StatefulWidget {
   final VoidCallback? onCenterPress;
   final VoidCallback? onCenterLongPress;
   final Function(double delta)? onScroll;
+  final List<Color>? wheelGradientColors;
+  final Color? labelColor;
+  final List<Color>? centerButtonGradientColors;
 
   const ClickWheel({
     super.key,
@@ -23,6 +26,9 @@ class ClickWheel extends StatefulWidget {
     this.onCenterPress,
     this.onCenterLongPress,
     this.onScroll,
+    this.wheelGradientColors,
+    this.labelColor,
+    this.centerButtonGradientColors,
   });
 
   @override
@@ -226,7 +232,12 @@ class _ClickWheelState extends State<ClickWheel>
               child: child,
             ),
             child: CustomPaint(
-              painter: _ClickWheelPainter(pressedRegion: _pressedRegion),
+              painter: _ClickWheelPainter(
+                pressedRegion: _pressedRegion,
+                wheelGradientColors: widget.wheelGradientColors,
+                labelColor: widget.labelColor,
+                centerButtonGradientColors: widget.centerButtonGradientColors,
+              ),
               child: SizedBox(
                 width: constraints.maxWidth,
                 height: constraints.maxHeight,
@@ -241,8 +252,16 @@ class _ClickWheelState extends State<ClickWheel>
 
 class _ClickWheelPainter extends CustomPainter {
   final WheelRegion? pressedRegion;
+  final List<Color>? wheelGradientColors;
+  final Color? labelColor;
+  final List<Color>? centerButtonGradientColors;
 
-  _ClickWheelPainter({this.pressedRegion});
+  _ClickWheelPainter({
+    this.pressedRegion,
+    this.wheelGradientColors,
+    this.labelColor,
+    this.centerButtonGradientColors,
+  });
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -268,10 +287,10 @@ class _ClickWheelPainter extends CustomPainter {
       ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 8);
     canvas.drawCircle(center + const Offset(0, 3), radius + 2, shadowPaint);
 
-    // Wheel background gradient (smooth radial from light to dark grey)
+    // Wheel background gradient
     final bgPaint = Paint()
-      ..shader = const RadialGradient(
-        colors: [
+      ..shader = RadialGradient(
+        colors: wheelGradientColors ?? const [
           Color(0xFFFAFAFA),
           Color(0xFFDFDFDF),
           Color(0xFFC4C4C4),
@@ -345,9 +364,9 @@ class _ClickWheelPainter extends CustomPainter {
       Canvas canvas, Offset center, double radius, double centerRadius) {
     // Positioning labels closer to the outer border (70% of the ring thickness)
     final labelRadius = centerRadius + (radius - centerRadius) * 0.70;
-    const labelColor = Color(0xFF0071C5);
-    const labelStyle = TextStyle(
-      color: labelColor,
+    final activeLabelColor = labelColor ?? const Color(0xFF0071C5);
+    final labelStyle = TextStyle(
+      color: activeLabelColor,
       fontSize: 10,
       fontWeight: FontWeight.bold,
     );
@@ -360,7 +379,7 @@ class _ClickWheelPainter extends CustomPainter {
     };
 
     final paint = Paint()
-      ..color = labelColor
+      ..color = activeLabelColor
       ..style = PaintingStyle.fill;
 
     for (final entry in labels.entries) {
@@ -433,10 +452,10 @@ class _ClickWheelPainter extends CustomPainter {
     final centerPaint = Paint()
       ..shader = RadialGradient(
         center: const Alignment(0, -0.4),
-        colors: [
-          const Color(0xFFF5F5F5),
-          const Color(0xFFDDDDDD),
-          const Color(0xFFC8C8C8),
+        colors: centerButtonGradientColors ?? const [
+          Color(0xFFF5F5F5),
+          Color(0xFFDDDDDD),
+          Color(0xFFC8C8C8),
         ],
       ).createShader(Rect.fromCircle(center: center, radius: centerRadius));
     canvas.drawCircle(center, centerRadius, centerPaint);

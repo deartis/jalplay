@@ -1,7 +1,8 @@
+import 'dart:math' as math;
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import '../providers/player_provider.dart' show PlayerProvider, SongRepeat;
+import '../providers/player_provider.dart' show PlayerProvider, SongRepeat, ipodThemes;
 import 'status_header.dart';
 
 class NowPlayingScreen extends StatefulWidget {
@@ -63,14 +64,16 @@ class _NowPlayingScreenState extends State<NowPlayingScreen>
 
         final song = provider.currentSong;
 
+        final theme = ipodThemes[provider.ipodTheme] ?? ipodThemes['classic']!;
+
         return Container(
-          color: const Color(0xFF1A1A2E),
+          color: theme.screenBg,
           child: Column(
             children: [
               // ─── Header ───
               Container(
                 height: 20,
-                color: const Color(0xFF0071C5),
+                color: theme.primary,
                 padding: const EdgeInsets.symmetric(horizontal: 8),
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -93,36 +96,47 @@ class _NowPlayingScreenState extends State<NowPlayingScreen>
               Expanded(
                 flex: 3,
                 child: Center(
-                  child: RotationTransition(
-                    turns: _rotationController,
-                    child: Container(
-                      width: 120,
-                      height: 120,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        color: const Color(0xFF0F3460),
-                        border: Border.all(
-                          color: const Color(0xFF0071C5),
-                          width: 3,
-                        ),
-                        boxShadow: [
-                          BoxShadow(
-                            color: const Color(0xFF0071C5).withValues(alpha: 0.4),
-                            blurRadius: 20,
-                            spreadRadius: 4,
-                          ),
-                        ],
-                      ),
-                      child: ClipOval(
-                        child: _artwork != null
-                            ? Image.memory(_artwork!, fit: BoxFit.cover)
-                            : const Icon(
-                                Icons.music_note,
-                                color: Color(0xFF0071C5),
-                                size: 60,
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      RotationTransition(
+                        turns: _rotationController,
+                        child: Container(
+                          width: 95,
+                          height: 95,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: theme.darkAccent,
+                            border: Border.all(
+                              color: theme.primary,
+                              width: 3,
+                            ),
+                            boxShadow: [
+                              BoxShadow(
+                                color: theme.primary.withValues(alpha: 0.4),
+                                blurRadius: 20,
+                                spreadRadius: 4,
                               ),
+                            ],
+                          ),
+                          child: ClipOval(
+                            child: _artwork != null
+                                ? Image.memory(_artwork!, fit: BoxFit.cover)
+                                : Icon(
+                                    Icons.music_note,
+                                    color: theme.primary,
+                                    size: 50,
+                                  ),
+                          ),
+                        ),
                       ),
-                    ),
+                      const SizedBox(height: 8),
+                      RetroVisualizer(
+                        isPlaying: provider.isPlaying,
+                        primaryColor: theme.primary,
+                        accentColor: theme.accent,
+                      ),
+                    ],
                   ),
                 ),
               ),
@@ -152,8 +166,8 @@ class _NowPlayingScreenState extends State<NowPlayingScreen>
                       // Artist
                       Text(
                         song?.artist ?? '',
-                        style: const TextStyle(
-                          color: Color(0xFF87CEEB),
+                        style: TextStyle(
+                          color: theme.accent,
                           fontSize: 11,
                           fontFamily: 'monospace',
                         ),
@@ -163,8 +177,8 @@ class _NowPlayingScreenState extends State<NowPlayingScreen>
                       // Album
                       Text(
                         song?.album ?? '',
-                        style: const TextStyle(
-                          color: Color(0xFF4A90A4),
+                        style: TextStyle(
+                          color: theme.subtitleColor,
                           fontSize: 9,
                           fontFamily: 'monospace',
                         ),
@@ -179,8 +193,8 @@ class _NowPlayingScreenState extends State<NowPlayingScreen>
                         children: [
                           Text(
                             _formatDuration(provider.position),
-                            style: const TextStyle(
-                              color: Color(0xFF87CEEB),
+                            style: TextStyle(
+                              color: theme.accent,
                               fontSize: 9,
                               fontFamily: 'monospace',
                             ),
@@ -198,7 +212,7 @@ class _NowPlayingScreenState extends State<NowPlayingScreen>
                                 child: Container(
                                   height: 4,
                                   decoration: BoxDecoration(
-                                    color: const Color(0xFF0F3460),
+                                    color: theme.darkAccent,
                                     borderRadius: BorderRadius.circular(2),
                                   ),
                                   child: FractionallySizedBox(
@@ -206,7 +220,7 @@ class _NowPlayingScreenState extends State<NowPlayingScreen>
                                     widthFactor: provider.progress,
                                     child: Container(
                                       decoration: BoxDecoration(
-                                        color: const Color(0xFF0071C5),
+                                        color: theme.primary,
                                         borderRadius: BorderRadius.circular(2),
                                       ),
                                     ),
@@ -219,8 +233,8 @@ class _NowPlayingScreenState extends State<NowPlayingScreen>
                             song != null
                                 ? _formatDuration(provider.duration)
                                 : '--:--',
-                            style: const TextStyle(
-                              color: Color(0xFF87CEEB),
+                            style: TextStyle(
+                              color: theme.accent,
                               fontSize: 9,
                               fontFamily: 'monospace',
                             ),
@@ -239,8 +253,8 @@ class _NowPlayingScreenState extends State<NowPlayingScreen>
                                 ? Icons.shuffle
                                 : Icons.shuffle,
                             color: provider.isShuffle
-                                ? const Color(0xFF00BFFF)
-                                : const Color(0xFF4A90A4),
+                                ? theme.accent
+                                : theme.subtitleColor,
                             onTap: provider.toggleShuffle,
                           ),
                           _ControlButton(
@@ -248,8 +262,8 @@ class _NowPlayingScreenState extends State<NowPlayingScreen>
                                 ? Icons.repeat_one
                                 : Icons.repeat,
                             color: provider.repeatMode != SongRepeat.off
-                                ? const Color(0xFF00BFFF)
-                                : const Color(0xFF4A90A4),
+                                ? theme.accent
+                                : theme.subtitleColor,
                             onTap: provider.toggleRepeat,
                           ),
                         ],
@@ -284,6 +298,108 @@ class _ControlButton extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.all(6),
         child: Icon(icon, color: color, size: 16),
+      ),
+    );
+  }
+}
+
+class RetroVisualizer extends StatefulWidget {
+  final bool isPlaying;
+  final Color primaryColor;
+  final Color accentColor;
+
+  const RetroVisualizer({
+    super.key,
+    required this.isPlaying,
+    required this.primaryColor,
+    required this.accentColor,
+  });
+
+  @override
+  State<RetroVisualizer> createState() => _RetroVisualizerState();
+}
+
+class _RetroVisualizerState extends State<RetroVisualizer>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+  final List<double> _barHeights = List.filled(15, 2.0);
+  final math.Random _random = math.Random();
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 150),
+    )..addListener(() {
+        if (widget.isPlaying) {
+          setState(() {
+            for (int i = 0; i < _barHeights.length; i++) {
+              final target = _random.nextDouble() * 24.0 + 3.0;
+              _barHeights[i] = _barHeights[i] * 0.4 + target * 0.6;
+            }
+          });
+        } else {
+          setState(() {
+            for (int i = 0; i < _barHeights.length; i++) {
+              _barHeights[i] = _barHeights[i] * 0.8 + 2.0 * 0.2;
+            }
+          });
+        }
+      });
+
+    if (widget.isPlaying) {
+      _controller.repeat();
+    }
+  }
+
+  @override
+  void didUpdateWidget(RetroVisualizer oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.isPlaying && !_controller.isAnimating) {
+      _controller.repeat();
+    } else if (!widget.isPlaying && _controller.isAnimating) {
+      _controller.stop();
+      setState(() {
+        for (int i = 0; i < _barHeights.length; i++) {
+          _barHeights[i] = 2.0;
+        }
+      });
+    }
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      height: 30,
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        crossAxisAlignment: CrossAxisAlignment.end,
+        children: List.generate(_barHeights.length, (index) {
+          return Container(
+            width: 3.5,
+            height: _barHeights[index],
+            margin: const EdgeInsets.symmetric(horizontal: 1.5),
+            decoration: BoxDecoration(
+              color: widget.accentColor,
+              borderRadius: BorderRadius.circular(1),
+              gradient: LinearGradient(
+                begin: Alignment.bottomCenter,
+                end: Alignment.topCenter,
+                colors: [
+                  widget.primaryColor,
+                  widget.accentColor,
+                ],
+              ),
+            ),
+          );
+        }),
       ),
     );
   }

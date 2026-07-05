@@ -31,12 +31,14 @@ class _SearchScreenState extends State<SearchScreen> {
   Widget build(BuildContext context) {
     return Consumer<PlayerProvider>(
       builder: (context, provider, _) {
+        final theme = ipodThemes[provider.ipodTheme] ?? ipodThemes['classic']!;
+
         return Column(
           children: [
             // ─── Header ───
             Container(
               height: 20,
-              color: const Color(0xFF0071C5),
+              color: theme.primary,
               padding: const EdgeInsets.symmetric(horizontal: 8),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -64,12 +66,12 @@ class _SearchScreenState extends State<SearchScreen> {
             // ─── Search field ───
             Container(
               height: 28,
-              color: const Color(0xFF0F3460),
+              color: theme.darkAccent,
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
               child: Row(
                 children: [
-                  const Icon(Icons.search,
-                      color: Color(0xFF4A90A4), size: 12),
+                  Icon(Icons.search,
+                      color: theme.subtitleColor, size: 12),
                   const SizedBox(width: 4),
                   Expanded(
                     child: TextField(
@@ -80,13 +82,13 @@ class _SearchScreenState extends State<SearchScreen> {
                         fontSize: 11,
                         fontFamily: 'monospace',
                       ),
-                      cursorColor: const Color(0xFF0071C5),
+                      cursorColor: theme.primary,
                       cursorWidth: 1.5,
-                      decoration: const InputDecoration(
+                      decoration: InputDecoration(
                         border: InputBorder.none,
                         hintText: 'Digite para buscar...',
                         hintStyle: TextStyle(
-                          color: Color(0xFF4A90A4),
+                          color: theme.subtitleColor,
                           fontSize: 10,
                           fontFamily: 'monospace',
                         ),
@@ -98,8 +100,8 @@ class _SearchScreenState extends State<SearchScreen> {
                   if (_query.isNotEmpty)
                     GestureDetector(
                       onTap: () => _onQueryChanged('', provider),
-                      child: const Icon(Icons.clear,
-                          color: Color(0xFF4A90A4), size: 12),
+                      child: Icon(Icons.clear,
+                          color: theme.subtitleColor, size: 12),
                     ),
                 ],
               ),
@@ -108,12 +110,12 @@ class _SearchScreenState extends State<SearchScreen> {
             // ─── Results ───
             Expanded(
               child: _query.isEmpty
-                  ? const Center(
+                  ? Center(
                       child: Text(
                         'Busque por título,\nartista ou álbum',
                         textAlign: TextAlign.center,
                         style: TextStyle(
-                          color: Color(0xFF4A90A4),
+                          color: theme.subtitleColor,
                           fontSize: 10,
                           fontFamily: 'monospace',
                           height: 1.8,
@@ -125,8 +127,8 @@ class _SearchScreenState extends State<SearchScreen> {
                           child: Text(
                             'Nenhum resultado para\n"$_query"',
                             textAlign: TextAlign.center,
-                            style: const TextStyle(
-                              color: Color(0xFF4A90A4),
+                            style: TextStyle(
+                              color: theme.subtitleColor,
                               fontSize: 10,
                               fontFamily: 'monospace',
                               height: 1.8,

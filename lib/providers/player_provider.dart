@@ -46,15 +46,16 @@ class PlayerProvider extends ChangeNotifier {
   SleepTimerDuration _sleepTimer = SleepTimerDuration.off;
   Timer? _sleepTimerInstance;
   SongSortField _sortField = SongSortField.title;
+  String _ipodTheme = 'classic';
 
   // Playlists
   List<Playlist> _playlists = [];
 
-
   // Getters
   List<Song> get songs => _songs;
   int get currentIndex => _currentIndex;
-  Song? get currentSong => _currentIndex >= 0 && _currentIndex < _currentQueue.length
+  Song? get currentSong =>
+      _currentIndex >= 0 && _currentIndex < _currentQueue.length
       ? _currentQueue[_currentIndex]
       : null;
   PlayerState get playerState => _playerState;
@@ -73,6 +74,13 @@ class PlayerProvider extends ChangeNotifier {
   SleepTimerDuration get sleepTimer => _sleepTimer;
   bool get isSleepTimerActive => _sleepTimerInstance != null;
   SongSortField get sortField => _sortField;
+  String get ipodTheme => _ipodTheme;
+
+  void setIpodTheme(String theme) {
+    _ipodTheme = theme;
+    notifyListeners();
+    _savePrefs();
+  }
 
   // Playlists
   List<Playlist> get playlists => List.unmodifiable(_playlists);
@@ -84,12 +92,16 @@ class PlayerProvider extends ChangeNotifier {
     final ids = getPlaylistSongIds(name).toSet();
     return _songs.where((s) => ids.contains(s.id)).toList();
   }
+
   bool isSongInPlaylist(String name, int songId) =>
       getPlaylistSongIds(name).contains(songId);
 
   double get progress {
     if (_duration.inMilliseconds == 0) return 0.0;
-    return (_position.inMilliseconds / _duration.inMilliseconds).clamp(0.0, 1.0);
+    return (_position.inMilliseconds / _duration.inMilliseconds).clamp(
+      0.0,
+      1.0,
+    );
   }
 
   PlayerProvider(this._handler) {
@@ -126,8 +138,8 @@ class PlayerProvider extends ChangeNotifier {
       _repeatMode = state.repeatMode == AudioServiceRepeatMode.one
           ? SongRepeat.one
           : state.repeatMode == AudioServiceRepeatMode.all
-              ? SongRepeat.all
-              : SongRepeat.off;
+          ? SongRepeat.all
+          : SongRepeat.off;
 
       notifyListeners();
       _saveState();
@@ -179,7 +191,10 @@ class PlayerProvider extends ChangeNotifier {
       _ => 0,
     };
     if (minutes > 0) {
-      _sleepTimerInstance = Timer(Duration(minutes: minutes), _onSleepTimerFired);
+      _sleepTimerInstance = Timer(
+        Duration(minutes: minutes),
+        _onSleepTimerFired,
+      );
     }
     notifyListeners();
     _savePrefs();
@@ -192,7 +207,8 @@ class PlayerProvider extends ChangeNotifier {
 
   void _onSleepTimerFired() {
     _sleepTimerInstance = null;
-    if (_playerState == PlayerState.playing || _playerState == PlayerState.paused) {
+    if (_playerState == PlayerState.playing ||
+        _playerState == PlayerState.paused) {
       _handler.stop();
     }
     notifyListeners();
@@ -240,6 +256,7 @@ class PlayerProvider extends ChangeNotifier {
     _volume = 1.0;
     _artworkCache.clear();
     _playlists = [];
+    _ipodTheme = 'classic';
 
     await _handler.setShuffleMode(AudioServiceShuffleMode.none);
     await _handler.setRepeatMode(AudioServiceRepeatMode.none);
@@ -577,7 +594,10 @@ class PlayerProvider extends ChangeNotifier {
       final song = currentSong;
       if (song != null) {
         await prefs.setString('jalplay_last_song_id', song.id.toString());
-        await prefs.setInt('jalplay_last_position_ms', _position.inMilliseconds);
+        await prefs.setInt(
+          'jalplay_last_position_ms',
+          _position.inMilliseconds,
+        );
       }
       await prefs.setBool('jalplay_is_shuffle', _isShuffle);
       await prefs.setString('jalplay_repeat_mode', _repeatMode.name);
@@ -591,8 +611,11 @@ class PlayerProvider extends ChangeNotifier {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString('jalplay_sleep_timer', _sleepTimer.name);
       await prefs.setString('jalplay_sort_field', _sortField.name);
+      await prefs.setString('jalplay_ipod_theme', _ipodTheme);
       await prefs.setString(
-        'jalplay_playlists', Playlist.encodeList(_playlists));
+        'jalplay_playlists',
+        Playlist.encodeList(_playlists),
+      );
     } catch (e) {
       debugPrint('Error saving prefs: $e');
     }
@@ -618,7 +641,9 @@ class PlayerProvider extends ChangeNotifier {
           };
           if (minutes > 0) {
             _sleepTimerInstance = Timer(
-              Duration(minutes: minutes), _onSleepTimerFired);
+              Duration(minutes: minutes),
+              _onSleepTimerFired,
+            );
           }
         }
       }
@@ -629,6 +654,7 @@ class PlayerProvider extends ChangeNotifier {
           orElse: () => SongSortField.title,
         );
       }
+      _ipodTheme = prefs.getString('jalplay_ipod_theme') ?? 'classic';
 
       // Playlists
       final savedPlaylists = prefs.getString('jalplay_playlists');
@@ -639,14 +665,16 @@ class PlayerProvider extends ChangeNotifier {
       // Favorites
       final savedFavorites = prefs.getStringList('jalplay_favorites');
       if (savedFavorites != null) {
-        _favoriteSongIds =
-            savedFavorites.map((idStr) => int.parse(idStr)).toList();
+        _favoriteSongIds = savedFavorites
+            .map((idStr) => int.parse(idStr))
+            .toList();
       }
 
       // Shuffle
       final savedShuffle = prefs.getBool('jalplay_is_shuffle') ?? false;
-      final shuffleMode =
-          savedShuffle ? AudioServiceShuffleMode.all : AudioServiceShuffleMode.none;
+      final shuffleMode = savedShuffle
+          ? AudioServiceShuffleMode.all
+          : AudioServiceShuffleMode.none;
       await _handler.setShuffleMode(shuffleMode);
 
       // Repeat
@@ -671,7 +699,10 @@ class PlayerProvider extends ChangeNotifier {
           _currentIndex = idx;
           _position = Duration(milliseconds: lastPositionMs);
           _duration = Duration(milliseconds: _songs[idx].duration);
-          await _handler.prepareIndex(idx, Duration(milliseconds: lastPositionMs));
+          await _handler.prepareIndex(
+            idx,
+            Duration(milliseconds: lastPositionMs),
+          );
           notifyListeners();
         }
       }
@@ -695,3 +726,114 @@ class PlayerProvider extends ChangeNotifier {
     super.dispose();
   }
 }
+
+class IpodThemeData {
+  final List<Color> bodyGradient;
+  final List<Color> wheelGradient;
+  final Color wheelLabelColor;
+  final List<Color> wheelCenterGradient;
+
+  // Display screen theme colors
+  final Color screenBg;
+  final Color screenBgAlt;
+  final Color primary;
+  final Color accent;
+  final Color darkAccent;
+  final Color subtitleColor;
+
+  const IpodThemeData({
+    required this.bodyGradient,
+    required this.wheelGradient,
+    required this.wheelLabelColor,
+    required this.wheelCenterGradient,
+    required this.screenBg,
+    required this.screenBgAlt,
+    required this.primary,
+    required this.accent,
+    required this.darkAccent,
+    required this.subtitleColor,
+  });
+}
+
+const Map<String, IpodThemeData> ipodThemes = {
+  'classic': IpodThemeData(
+    bodyGradient: [Color(0xFFF8F8F8), Color(0xFFE8E8E8), Color(0xFFD8D8D8)],
+    wheelGradient: [Color(0xFFFAFAFA), Color(0xFFDFDFDF), Color(0xFFC4C4C4)],
+    wheelLabelColor: Color(0xFF0071C5),
+    wheelCenterGradient: [
+      Color(0xFFF5F5F5),
+      Color(0xFFDDDDDD),
+      Color(0xFFC8C8C8),
+    ],
+    screenBg: Color(0xFF1A1A2E),
+    screenBgAlt: Color(0xFF16162A),
+    primary: Color(0xFF0071C5),
+    accent: Color(0xFF00BFFF),
+    darkAccent: Color(0xFF0F3460),
+    subtitleColor: Color(0xFF4A90A4),
+  ),
+  'charcoal': IpodThemeData(
+    bodyGradient: [Color(0xFF404040), Color(0xFF282828), Color(0xFF181818)],
+    wheelGradient: [Color(0xFF383838), Color(0xFF242424), Color(0xFF1C1C1C)],
+    wheelLabelColor: Color(0xFF00A300),
+    wheelCenterGradient: [
+      Color(0xFF4A4A4A),
+      Color(0xFF333333),
+      Color(0xFF222222),
+    ],
+    screenBg: Color(0xFF0D1B0D),
+    screenBgAlt: Color(0xFF081408),
+    primary: Color(0xFF00A300),
+    accent: Color(0xFF39FF14),
+    darkAccent: Color(0xFF002200),
+    subtitleColor: Color(0xFF008000),
+  ),
+  'cobalt': IpodThemeData(
+    bodyGradient: [Color(0xFF0A4D68), Color(0xFF088395), Color(0xFF05BFDB)],
+    wheelGradient: [Color(0xFF0E2954), Color(0xFF0A4D68), Color(0xFF088395)],
+    wheelLabelColor: Colors.white,
+    wheelCenterGradient: [
+      Color(0xFF088395),
+      Color(0xFF0A4D68),
+      Color(0xFF05BFDB),
+    ],
+    screenBg: Color(0xFF0E1A2F),
+    screenBgAlt: Color(0xFF0A1426),
+    primary: Color(0xFF0A4D68),
+    accent: Color(0xFF05BFDB),
+    darkAccent: Color(0xFF088395),
+    subtitleColor: Color(0xFF4A90A4),
+  ),
+  'rose': IpodThemeData(
+    bodyGradient: [Color(0xFFFFB6C1), Color(0xFFFF69B4), Color(0xFFFF1493)],
+    wheelGradient: [Color(0xFFFFF0F5), Color(0xFFFFB6C1), Color(0xFFFF69B4)],
+    wheelLabelColor: Color(0xFFFF1493),
+    wheelCenterGradient: [
+      Color(0xFFFFF0F5),
+      Color(0xFFFFC0CB),
+      Color(0xFFFFB6C1),
+    ],
+    screenBg: Color(0xFF2B0A1A),
+    screenBgAlt: Color(0xFF200713),
+    primary: Color(0xFFC71585),
+    accent: Color(0xFFFF69B4),
+    darkAccent: Color(0xFF4A0E2E),
+    subtitleColor: Color(0xFFFFB6C1),
+  ),
+  'u2': IpodThemeData(
+    bodyGradient: [Color(0xFF262626), Color(0xFF161616), Color(0xFF0A0A0A)],
+    wheelGradient: [Color(0xFF303030), Color(0xFF1F1F1F), Color(0xFF101010)],
+    wheelLabelColor: Color(0xFFFF0000),
+    wheelCenterGradient: [
+      Color(0xFFFF0000),
+      Color(0xFFCC0000),
+      Color(0xFF990000),
+    ],
+    screenBg: Color(0xFF140505),
+    screenBgAlt: Color(0xFF0A0202),
+    primary: Color(0xFFCC0000),
+    accent: Color(0xFFFF3333),
+    darkAccent: Color(0xFF4A0000),
+    subtitleColor: Color(0xFFFF6666),
+  ),
+};

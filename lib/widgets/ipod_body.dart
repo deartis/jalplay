@@ -9,6 +9,8 @@ import 'click_wheel.dart';
 import 'menu_list.dart';
 import 'now_playing.dart';
 
+
+
 enum MenuScreen {
   main,
   music,
@@ -79,6 +81,7 @@ class _IpodBodyState extends State<IpodBody> {
   final List<String> _settingsMenuItems = [
     'Temporizador',
     'Ordenar',
+    'Tema do iPod',
     'Atualizar Biblioteca',
     'Sobre',
     'Redefinir Ajustes',
@@ -87,18 +90,101 @@ class _IpodBodyState extends State<IpodBody> {
   final Map<String, List<String>> _settingsOptions = {
     'sleepTimer': sleepTimerLabels,
     'sorting': sortFieldLabels,
+    'ipodTheme': ['Clássico', 'Grafite', 'Azul Cobalto', 'Rosa Pink', 'U2 Edition'],
   };
 
   bool _showFavFeedback = false;
   bool _isAddedFav = false;
   Timer? _favFeedbackTimer;
 
+  PlayerProvider? _playerProvider;
+  int? _lastSongId;
+
+  @override
+  void initState() {
+    super.initState();
+    _playerProvider = context.read<PlayerProvider>();
+    _playerProvider?.addListener(_onPlayerProviderChanged);
+    _lastSongId = _playerProvider?.currentSong?.id;
+
+    // Restore initial screen if there's a saved song
+    if (_playerProvider?.currentSong != null) {
+      _screen = MenuScreen.nowPlaying;
+      _history.add(MenuScreen.main);
+    }
+  }
+
+  void _onPlayerProviderChanged() {
+    if (!mounted) return;
+    final provider = _playerProvider;
+    if (provider == null) return;
+
+    final currentSong = provider.currentSong;
+    if (currentSong != null && currentSong.id != _lastSongId) {
+      _lastSongId = currentSong.id;
+      
+      // Update _selectedIndex if current screen is a song list
+      setState(() {
+        _selectedIndex = _getInitialSelectedIndexForScreen(_screen, provider);
+      });
+    }
+  }
+
+  int _getInitialSelectedIndexForScreen(MenuScreen screen, PlayerProvider provider) {
+    final current = provider.currentSong;
+    if (current == null) return 0;
+    
+    switch (screen) {
+      case MenuScreen.allSongs:
+        if (provider.songs.isEmpty) return 0;
+        final idx = provider.songs.indexWhere((s) => s.id == current.id);
+        return idx >= 0 ? idx : 0;
+        
+      case MenuScreen.artistSongs:
+        if (_selectedArtist != null) {
+          final songs = provider.songsByArtist(_selectedArtist!);
+          if (songs.isEmpty) return 0;
+          final idx = songs.indexWhere((s) => s.id == current.id);
+          return idx >= 0 ? idx : 0;
+        }
+        return 0;
+        
+      case MenuScreen.albumSongs:
+        if (_selectedAlbum != null) {
+          final songs = provider.songsByAlbum(_selectedAlbum!);
+          if (songs.isEmpty) return 0;
+          final idx = songs.indexWhere((s) => s.id == current.id);
+          return idx >= 0 ? idx : 0;
+        }
+        return 0;
+        
+      case MenuScreen.favorites:
+        final songs = provider.favoriteSongs;
+        if (songs.isEmpty) return 0;
+        final idx = songs.indexWhere((s) => s.id == current.id);
+        return idx >= 0 ? idx : 0;
+        
+      case MenuScreen.playlistSongs:
+        if (_selectedPlaylist != null) {
+          final songs = provider.getPlaylistSongs(_selectedPlaylist!);
+          if (songs.isEmpty) return 0;
+          final idx = songs.indexWhere((s) => s.id == current.id);
+          return idx >= 0 ? idx : 0;
+        }
+        return 0;
+        
+      default:
+        return 0;
+    }
+  }
+
   void _navigateTo(MenuScreen screen) {
     setState(() {
       _slidingForward = true;
       _history.add(_screen);
       _screen = screen;
-      _selectedIndex = 0;
+      final provider = context.read<PlayerProvider>();
+      _selectedIndex = _getInitialSelectedIndexForScreen(screen, provider);
     });
   }
 
@@ -107,7 +193,8 @@ class _IpodBodyState extends State<IpodBody> {
     setState(() {
       _slidingForward = false;
       _screen = _history.removeLast();
-      _selectedIndex = 0;
+      final provider = context.read<PlayerProvider>();
+      _selectedIndex = _getInitialSelectedIndexForScreen(_screen, provider);
     });
   }
 
@@ -162,6 +249,7 @@ class _IpodBodyState extends State<IpodBody> {
 
   @override
   void dispose() {
+    _playerProvider?.removeListener(_onPlayerProviderChanged);
     _volumeOverlayTimer?.cancel();
     _favFeedbackTimer?.cancel();
     _overlayTimer?.cancel();
@@ -404,6 +492,8 @@ class _IpodBodyState extends State<IpodBody> {
     }
   }
 
+  static const _themeKeys = ['classic', 'charcoal', 'cobalt', 'rose', 'u2'];
+
   void _selectSettingsMenuItem(int index, PlayerProvider provider) {
     switch (index) {
       case 0: // Sleep Timer
@@ -412,12 +502,15 @@ class _IpodBodyState extends State<IpodBody> {
       case 1: // Sorting
         _settingsCategory = 'sorting';
         _navigateTo(MenuScreen.settingsOptions);
-      case 2: // Rescan Library
+      case 2: // Theme
+        _settingsCategory = 'ipodTheme';
+        _navigateTo(MenuScreen.settingsOptions);
+      case 3: // Rescan Library
         provider.rescanLibrary();
         _navigateBack();
-      case 3: // About
+      case 4: // About
         _navigateTo(MenuScreen.about);
-      case 4: // Reset Settings
+      case 5: // Reset Settings
         _showConfirmReset = true;
         setState(() {});
     }
@@ -429,6 +522,8 @@ class _IpodBodyState extends State<IpodBody> {
         provider.setSleepTimer(SleepTimerDuration.values[index]);
       case 'sorting':
         provider.setSortField(SongSortField.values[index]);
+      case 'ipodTheme':
+        provider.setIpodTheme(_themeKeys[index]);
     }
     _navigateBack();
   }
@@ -537,6 +632,8 @@ class _IpodBodyState extends State<IpodBody> {
         return SleepTimerDuration.values.indexOf(provider.sleepTimer);
       case 'sorting':
         return SongSortField.values.indexOf(provider.sortField);
+      case 'ipodTheme':
+        return _themeKeys.indexOf(provider.ipodTheme);
       default:
         return 0;
     }
@@ -749,6 +846,11 @@ class _IpodBodyState extends State<IpodBody> {
     // Show current sort
     items[1] = 'Ordenar (${sortFieldLabels[SongSortField.values.indexOf(provider.sortField)]})';
 
+    // Show current theme
+    final themeLabels = _settingsOptions['ipodTheme']!;
+    final themeIdx = _themeKeys.indexOf(provider.ipodTheme);
+    items[2] = 'Tema do iPod (${themeLabels[themeIdx >= 0 ? themeIdx : 0]})';
+
     return MenuList(
       key: const ValueKey('settings'),
       title: 'Configurações',
@@ -765,6 +867,7 @@ class _IpodBodyState extends State<IpodBody> {
     const categoryTitles = {
       'sleepTimer': 'Temporizador',
       'sorting': 'Ordenar',
+      'ipodTheme': 'Tema do iPod',
     };
     final options = _settingsOptions[_settingsCategory] ?? [];
     final selected = _selectedOptionIndex(provider);
@@ -898,14 +1001,10 @@ class _IpodBodyState extends State<IpodBody> {
             child: Container(
               margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
               decoration: BoxDecoration(
-                gradient: const LinearGradient(
+                gradient: LinearGradient(
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
-                  colors: [
-                    Color(0xFFF8F8F8),
-                    Color(0xFFE8E8E8),
-                    Color(0xFFD8D8D8),
-                  ],
+                  colors: (ipodThemes[provider.ipodTheme] ?? ipodThemes['classic']!).bodyGradient,
                 ),
                 borderRadius: BorderRadius.circular(28),
                 boxShadow: [
@@ -971,7 +1070,7 @@ class _IpodBodyState extends State<IpodBody> {
                       padding: const EdgeInsets.symmetric(horizontal: 18),
                       child: Container(
                         decoration: BoxDecoration(
-                          color: const Color(0xFF1A1A2E),
+                          color: (ipodThemes[provider.ipodTheme] ?? ipodThemes['classic']!).screenBg,
                           borderRadius: BorderRadius.circular(8),
                           border: Border.all(
                             color: const Color(0xFF888888),
@@ -1057,6 +1156,9 @@ class _IpodBodyState extends State<IpodBody> {
                             onCenterPress: _onCenterPress,
                             onCenterLongPress: _onCenterLongPress,
                             onScroll: _onScroll,
+                            wheelGradientColors: (ipodThemes[provider.ipodTheme] ?? ipodThemes['classic']!).wheelGradient,
+                            labelColor: (ipodThemes[provider.ipodTheme] ?? ipodThemes['classic']!).wheelLabelColor,
+                            centerButtonGradientColors: (ipodThemes[provider.ipodTheme] ?? ipodThemes['classic']!).wheelCenterGradient,
                           ),
                         ),
                       ),
