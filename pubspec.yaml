@@ -1,6 +1,6 @@
 name: jalplay
-description: "JALPlay - Classic iPod-style MP3 Player for Android"
-publish_to: 'none'
+description: "JAL Play - Reprodutor de MP3 clássico estilo iPod para Android"
+publish_to: "none"
 
 version: 1.0.0+1
 
