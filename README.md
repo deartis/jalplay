@@ -22,8 +22,9 @@ O projeto foi construído usando **Flutter** e utiliza as melhores práticas de 
 ## 📸 Demonstração da Interface
 
 <p align="center">
-  <!-- Captura de tela do repositório -->
-  <img src="https://github.com/deartis/jalplay/raw/master/img/logo2.png" alt="JALPlay Interface" width="280" style="border-radius: 12px; box-shadow: 0 4px 8px rgba(0,0,0,0.2);" />
+  <img src="img/screen1.png" alt="JALPlay Tema 1" width="250" style="border-radius: 12px; box-shadow: 0 4px 8px rgba(0,0,0,0.2); margin: 5px;" />
+  <img src="img/screen2.png" alt="JALPlay Tema 2" width="250" style="border-radius: 12px; box-shadow: 0 4px 8px rgba(0,0,0,0.2); margin: 5px;" />
+  <img src="img/screen3.png" alt="JALPlay Tema 3" width="250" style="border-radius: 12px; box-shadow: 0 4px 8px rgba(0,0,0,0.2); margin: 5px;" />
 </p>
 
 ---
