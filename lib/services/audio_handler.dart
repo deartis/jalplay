@@ -24,6 +24,7 @@ class JalPlayAudioHandler extends BaseAudioHandler
         MediaControl.skipToPrevious,
         MediaControl.play,
         MediaControl.skipToNext,
+        MediaControl.stop,
       ],
       systemActions: const {
         MediaAction.seek,
@@ -33,6 +34,7 @@ class JalPlayAudioHandler extends BaseAudioHandler
         MediaAction.pause,
         MediaAction.skipToNext,
         MediaAction.skipToPrevious,
+        MediaAction.stop,
       },
       androidCompactActionIndices: const [0, 1, 2],
       processingState: AudioProcessingState.idle,
@@ -174,6 +176,7 @@ class JalPlayAudioHandler extends BaseAudioHandler
         MediaControl.skipToPrevious,
         playing ? MediaControl.pause : MediaControl.play,
         MediaControl.skipToNext,
+        MediaControl.stop,
       ],
       systemActions: const {
         MediaAction.seek,
@@ -183,6 +186,7 @@ class JalPlayAudioHandler extends BaseAudioHandler
         MediaAction.pause,
         MediaAction.skipToNext,
         MediaAction.skipToPrevious,
+        MediaAction.stop,
       },
       androidCompactActionIndices: const [0, 1, 2],
       processingState: const {

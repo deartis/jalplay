@@ -35,7 +35,7 @@ Future<void> main() async {
       androidNotificationChannelId: 'com.jalplay.jalplay.audio',
       androidNotificationChannelName: 'JALPlay',
       androidNotificationOngoing: false,
-      androidStopForegroundOnPause: false,
+      androidStopForegroundOnPause: true,
       notificationColor: Color(0xFF0071C5),
       androidNotificationIcon: 'drawable/ic_stat_music_note',
     ),
