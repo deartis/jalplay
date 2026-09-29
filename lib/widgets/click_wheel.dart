@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import '../services/click_service.dart';
 
 enum WheelRegion { menu, rewind, playPause, fastForward, center }
 
@@ -117,8 +118,10 @@ class _ClickWheelState extends State<ClickWheel>
     return distance > centerRadius && distance <= radius;
   }
 
+  DateTime? _lastScrollTime;
+
   void _triggerHaptic() {
-    HapticFeedback.lightImpact();
+    ClickService().playClick();
   }
 
   void _onTapDown(TapDownDetails details, BoxConstraints constraints) {
@@ -240,10 +243,21 @@ class _ClickWheelState extends State<ClickWheel>
     _accumulatedDelta += delta;
     _lastAngle = currentAngle;
 
-    // Trigger scroll every ~15 degrees
+    // Trigger scroll every ~15 degrees with acceleration
     if (_accumulatedDelta.abs() > 0.26) {
       _triggerHaptic();
-      widget.onScroll?.call(_accumulatedDelta > 0 ? 1.0 : -1.0);
+      final now = DateTime.now();
+      double step = 1.0;
+      if (_lastScrollTime != null) {
+        final elapsedMs = now.difference(_lastScrollTime!).inMilliseconds;
+        if (elapsedMs < 45) {
+          step = 3.0; // Fast spin
+        } else if (elapsedMs < 85) {
+          step = 2.0; // Medium spin
+        }
+      }
+      _lastScrollTime = now;
+      widget.onScroll?.call(_accumulatedDelta > 0 ? step : -step);
       _accumulatedDelta = 0;
     }
   }

@@ -97,14 +97,23 @@ class _MenuListState extends State<MenuList> {
               ),
             ),
 
-            // List
+            // List with retro scrollbar
             Expanded(
-              child: ListView.builder(
+              child: RawScrollbar(
                 controller: _scrollController,
-                itemCount: widget.items.length,
-                itemExtent: 42,
-                padding: EdgeInsets.zero,
-                itemBuilder: (context, index) {
+                thumbVisibility: widget.items.length > 5,
+                thickness: 4,
+                radius: const Radius.circular(2),
+                thumbColor: theme.accent,
+                trackVisibility: widget.items.length > 5,
+                trackColor: theme.darkAccent.withValues(alpha: 0.6),
+                trackRadius: const Radius.circular(2),
+                child: ListView.builder(
+                  controller: _scrollController,
+                  itemCount: widget.items.length,
+                  itemExtent: 42,
+                  padding: EdgeInsets.zero,
+                  itemBuilder: (context, index) {
                   final isSelected = index == widget.selectedIndex;
                   final playing = widget.isPlaying?.call(index) ?? false;
 
@@ -181,6 +190,7 @@ class _MenuListState extends State<MenuList> {
                 },
               ),
             ),
+          ),
 
             // Bottom mini player bar
             if (provider.currentSong != null)

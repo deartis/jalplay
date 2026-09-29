@@ -47,6 +47,11 @@ class _IpodBodyState extends State<IpodBody> {
   bool _showVolumeOverlay = false;
   Timer? _volumeOverlayTimer;
 
+  bool _showSeekOverlay = false;
+  String _seekOverlayText = '';
+  IconData _seekOverlayIcon = Icons.fast_forward;
+  Timer? _seekOverlayTimer;
+
   final List<MenuScreen> _history = [];
   bool _slidingForward = true;
 
@@ -251,9 +256,32 @@ class _IpodBodyState extends State<IpodBody> {
   void dispose() {
     _playerProvider?.removeListener(_onPlayerProviderChanged);
     _volumeOverlayTimer?.cancel();
+    _seekOverlayTimer?.cancel();
     _favFeedbackTimer?.cancel();
     _overlayTimer?.cancel();
     super.dispose();
+  }
+
+  void _showSeekFeedback({required bool isFastForward}) {
+    final provider = context.read<PlayerProvider>();
+    final pos = provider.position;
+    final m = pos.inMinutes.remainder(60).toString().padLeft(2, '0');
+    final s = pos.inSeconds.remainder(60).toString().padLeft(2, '0');
+
+    setState(() {
+      _showSeekOverlay = true;
+      _seekOverlayIcon = isFastForward ? Icons.fast_forward : Icons.fast_rewind;
+      _seekOverlayText = isFastForward ? '>> +5s  ($m:$s)' : '<< -5s  ($m:$s)';
+    });
+
+    _seekOverlayTimer?.cancel();
+    _seekOverlayTimer = Timer(const Duration(milliseconds: 1200), () {
+      if (mounted) {
+        setState(() {
+          _showSeekOverlay = false;
+        });
+      }
+    });
   }
 
   void _showFavoriteFeedback(bool isAdded) {
@@ -1117,6 +1145,8 @@ class _IpodBodyState extends State<IpodBody> {
                               ),
                               if (_showVolumeOverlay)
                                 _buildVolumeOverlay(provider),
+                              if (_showSeekOverlay)
+                                _buildSeekOverlay(provider),
                               if (_showFavFeedback)
                                 _buildFavFeedbackOverlay(),
                               if (_showConfirmReset)
@@ -1151,10 +1181,16 @@ class _IpodBodyState extends State<IpodBody> {
                           child: ClickWheel(
                             onMenu: _onMenu,
                             onRewind: provider.previous,
-                            onRewindHold: () => provider.rewind(seconds: 5),
+                            onRewindHold: () {
+                              provider.rewind(seconds: 5);
+                              _showSeekFeedback(isFastForward: false);
+                            },
                             onPlayPause: provider.togglePlayPause,
                             onFastForward: provider.next,
-                            onFastForwardHold: () => provider.fastForward(seconds: 5),
+                            onFastForwardHold: () {
+                              provider.fastForward(seconds: 5);
+                              _showSeekFeedback(isFastForward: true);
+                            },
                             onCenterPress: _onCenterPress,
                             onCenterLongPress: _onCenterLongPress,
                             onScroll: _onScroll,
@@ -1452,6 +1488,50 @@ class _IpodBodyState extends State<IpodBody> {
                       ),
                     ),
                   ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSeekOverlay(PlayerProvider provider) {
+    final theme = ipodThemes[provider.ipodTheme] ?? ipodThemes['classic']!;
+    return Positioned(
+      left: 16,
+      right: 16,
+      bottom: 24,
+      child: AnimatedOpacity(
+        opacity: _showSeekOverlay ? 1.0 : 0.0,
+        duration: const Duration(milliseconds: 200),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          decoration: BoxDecoration(
+            color: const Color(0xEC111122),
+            borderRadius: BorderRadius.circular(6),
+            border: Border.all(color: theme.primary, width: 1.5),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.8),
+                blurRadius: 10,
+                offset: const Offset(0, 4),
+              ),
+            ],
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(_seekOverlayIcon, color: theme.accent, size: 16),
+              const SizedBox(width: 8),
+              Text(
+                _seekOverlayText,
+                style: TextStyle(
+                  color: theme.accent,
+                  fontSize: 11,
+                  fontWeight: FontWeight.bold,
+                  fontFamily: 'monospace',
                 ),
               ),
             ],

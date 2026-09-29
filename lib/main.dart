@@ -4,9 +4,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'app.dart';
 import 'services/audio_handler.dart';
+import 'services/click_service.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // Initialize click sound service for ClickWheel feedback
+  ClickService().init();
 
   // Configure AudioSession for background music playback
   final session = await AudioSession.instance;
