@@ -7,7 +7,7 @@ plugins {
 
 android {
     namespace = "com.jalplay.jalplay"
-    compileSdk = 36
+    compileSdk = flutter.compileSdkVersion
     ndkVersion = flutter.ndkVersion
 
     compileOptions {
@@ -22,7 +22,7 @@ android {
     defaultConfig {
         applicationId = "com.jalplay.jalplay"
         minSdk = flutter.minSdkVersion
-        targetSdk = 34
+        targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName
     }

@@ -8,8 +8,10 @@ enum WheelRegion { menu, rewind, playPause, fastForward, center }
 class ClickWheel extends StatefulWidget {
   final VoidCallback? onMenu;
   final VoidCallback? onRewind;
+  final VoidCallback? onRewindHold;
   final VoidCallback? onPlayPause;
   final VoidCallback? onFastForward;
+  final VoidCallback? onFastForwardHold;
   final VoidCallback? onCenterPress;
   final VoidCallback? onCenterLongPress;
   final Function(double delta)? onScroll;
@@ -21,8 +23,10 @@ class ClickWheel extends StatefulWidget {
     super.key,
     this.onMenu,
     this.onRewind,
+    this.onRewindHold,
     this.onPlayPause,
     this.onFastForward,
+    this.onFastForwardHold,
     this.onCenterPress,
     this.onCenterLongPress,
     this.onScroll,
@@ -46,6 +50,10 @@ class _ClickWheelState extends State<ClickWheel>
   Timer? _centerLongPressTimer;
   bool _isLongPressActive = false;
 
+  Timer? _seekHoldTimer;
+  Timer? _seekRepeatTimer;
+  bool _isSeekHoldActive = false;
+
   @override
   void initState() {
     super.initState();
@@ -58,10 +66,16 @@ class _ClickWheelState extends State<ClickWheel>
     );
   }
 
+  void _cancelHoldTimers() {
+    _centerLongPressTimer?.cancel();
+    _seekHoldTimer?.cancel();
+    _seekRepeatTimer?.cancel();
+  }
+
   @override
   void dispose() {
     _pulseController.dispose();
-    _centerLongPressTimer?.cancel();
+    _cancelHoldTimers();
     super.dispose();
   }
 
@@ -115,15 +129,45 @@ class _ClickWheelState extends State<ClickWheel>
     _pulseController.forward();
     _triggerHaptic();
 
+    _cancelHoldTimers();
+    _isLongPressActive = false;
+    _isSeekHoldActive = false;
+
     if (region == WheelRegion.center) {
-      _isLongPressActive = false;
-      _centerLongPressTimer?.cancel();
       _centerLongPressTimer = Timer(const Duration(milliseconds: 600), () {
         if (mounted && _pressedRegion == WheelRegion.center) {
           setState(() {
             _isLongPressActive = true;
           });
           widget.onCenterLongPress?.call();
+        }
+      });
+    } else if (region == WheelRegion.rewind && widget.onRewindHold != null) {
+      _seekHoldTimer = Timer(const Duration(milliseconds: 350), () {
+        if (mounted && _pressedRegion == WheelRegion.rewind) {
+          _isSeekHoldActive = true;
+          _triggerHaptic();
+          widget.onRewindHold?.call();
+          _seekRepeatTimer = Timer.periodic(const Duration(milliseconds: 250), (_) {
+            if (mounted && _pressedRegion == WheelRegion.rewind) {
+              _triggerHaptic();
+              widget.onRewindHold?.call();
+            }
+          });
+        }
+      });
+    } else if (region == WheelRegion.fastForward && widget.onFastForwardHold != null) {
+      _seekHoldTimer = Timer(const Duration(milliseconds: 350), () {
+        if (mounted && _pressedRegion == WheelRegion.fastForward) {
+          _isSeekHoldActive = true;
+          _triggerHaptic();
+          widget.onFastForwardHold?.call();
+          _seekRepeatTimer = Timer.periodic(const Duration(milliseconds: 250), (_) {
+            if (mounted && _pressedRegion == WheelRegion.fastForward) {
+              _triggerHaptic();
+              widget.onFastForwardHold?.call();
+            }
+          });
         }
       });
     }
@@ -133,11 +177,13 @@ class _ClickWheelState extends State<ClickWheel>
     final size = Size(constraints.maxWidth, constraints.maxHeight);
     final region = _getRegion(details.localPosition, size);
 
-    _centerLongPressTimer?.cancel();
+    _cancelHoldTimers();
 
     if (region != null) {
       if (region == WheelRegion.center && _isLongPressActive) {
         _isLongPressActive = false;
+      } else if ((region == WheelRegion.rewind || region == WheelRegion.fastForward) && _isSeekHoldActive) {
+        _isSeekHoldActive = false;
       } else {
         switch (region) {
           case WheelRegion.menu:
@@ -164,12 +210,14 @@ class _ClickWheelState extends State<ClickWheel>
       _pressedRegion = null;
       _lastAngle = null;
       _isLongPressActive = false;
+      _isSeekHoldActive = false;
     });
   }
 
   void _onPanStart(DragStartDetails details, BoxConstraints constraints) {
-    _centerLongPressTimer?.cancel();
+    _cancelHoldTimers();
     _isLongPressActive = false;
+    _isSeekHoldActive = false;
     final size = Size(constraints.maxWidth, constraints.maxHeight);
     if (_isOnRing(details.localPosition, size)) {
       _lastAngle = _getAngle(details.localPosition, size);
@@ -213,11 +261,12 @@ class _ClickWheelState extends State<ClickWheel>
           onTapDown: (d) => _onTapDown(d, constraints),
           onTapUp: (d) => _onTapUp(d, constraints),
           onTapCancel: () {
-            _centerLongPressTimer?.cancel();
+            _cancelHoldTimers();
             _pulseController.reverse();
             setState(() {
               _pressedRegion = null;
               _isLongPressActive = false;
+              _isSeekHoldActive = false;
             });
           },
           onPanStart: (d) => _onPanStart(d, constraints),

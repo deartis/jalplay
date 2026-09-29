@@ -506,6 +506,10 @@ class PlayerProvider extends ChangeNotifier {
     await seekTo(clamped);
   }
 
+  Future<void> fastForward({int seconds = 5}) => seekRelative(seconds);
+
+  Future<void> rewind({int seconds = 5}) => seekRelative(-seconds);
+
   Future<void> setVolume(double val) async {
     final clamped = val.clamp(0.0, 1.0);
     await _handler.player.setVolume(clamped);

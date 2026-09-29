@@ -89,6 +89,19 @@ class JalPlayAudioHandler extends BaseAudioHandler
   Future<void> seek(Duration position) => _player.seek(position);
 
   @override
+  Future<void> fastForward() async {
+    final newPos = _player.position + const Duration(seconds: 10);
+    final duration = _player.duration ?? Duration.zero;
+    await seek(newPos > duration ? duration : newPos);
+  }
+
+  @override
+  Future<void> rewind() async {
+    final newPos = _player.position - const Duration(seconds: 10);
+    await seek(newPos < Duration.zero ? Duration.zero : newPos);
+  }
+
+  @override
   Future<void> skipToNext() async {
     try {
       if (playbackState.value.shuffleMode == AudioServiceShuffleMode.all) {

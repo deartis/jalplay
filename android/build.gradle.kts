@@ -24,7 +24,7 @@ subprojects {
 subprojects {
     plugins.withId("com.android.library") {
         val androidExt = extensions.findByName("android")
-            as? com.android.build.gradle.LibraryExtension
+            as? com.android.build.api.dsl.LibraryExtension
         if (androidExt != null) {
             // Fix 1: inject namespace from AndroidManifest.xml if missing
             if (androidExt.namespace == null) {
@@ -45,15 +45,27 @@ subprojects {
             }
         }
 
+        // Fix 3: ensure compileSdk is at least 34 for legacy libraries (e.g. on_audio_query_android) using finalizeDsl
+        val androidComponents = extensions.findByType(com.android.build.api.variant.AndroidComponentsExtension::class.java)
+        androidComponents?.finalizeDsl { extension ->
+            (extension as? com.android.build.api.dsl.LibraryExtension)?.let { libExt ->
+                if ((libExt.compileSdk ?: 0) < 34) {
+                    libExt.compileSdk = 34
+                }
+            }
+        }
+
         // Fix 2 (Kotlin side): align Kotlin JVM target with javac target dynamically
         afterEvaluate {
             val updatedAndroidExt = extensions.findByName("android")
-                as? com.android.build.gradle.LibraryExtension
+                as? com.android.build.api.dsl.LibraryExtension
             val targetCompat = updatedAndroidExt?.compileOptions?.targetCompatibility
             if (targetCompat != null) {
                 tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompile>().configureEach {
-                    kotlinOptions {
-                        jvmTarget = targetCompat.toString()
+                    compilerOptions {
+                        jvmTarget.set(
+                            org.jetbrains.kotlin.gradle.dsl.JvmTarget.fromTarget(targetCompat.toString())
+                        )
                     }
                 }
             }

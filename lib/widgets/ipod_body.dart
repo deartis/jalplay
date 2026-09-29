@@ -1151,8 +1151,10 @@ class _IpodBodyState extends State<IpodBody> {
                           child: ClickWheel(
                             onMenu: _onMenu,
                             onRewind: provider.previous,
+                            onRewindHold: () => provider.rewind(seconds: 5),
                             onPlayPause: provider.togglePlayPause,
                             onFastForward: provider.next,
+                            onFastForwardHold: () => provider.fastForward(seconds: 5),
                             onCenterPress: _onCenterPress,
                             onCenterLongPress: _onCenterLongPress,
                             onScroll: _onScroll,

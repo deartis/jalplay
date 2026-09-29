@@ -249,6 +249,11 @@ class _NowPlayingScreenState extends State<NowPlayingScreen>
                         mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                         children: [
                           _ControlButton(
+                            icon: Icons.replay_10,
+                            color: theme.accent,
+                            onTap: () => provider.rewind(seconds: 10),
+                          ),
+                          _ControlButton(
                             icon: provider.isShuffle
                                 ? Icons.shuffle
                                 : Icons.shuffle,
@@ -265,6 +270,11 @@ class _NowPlayingScreenState extends State<NowPlayingScreen>
                                 ? theme.accent
                                 : theme.subtitleColor,
                             onTap: provider.toggleRepeat,
+                          ),
+                          _ControlButton(
+                            icon: Icons.forward_10,
+                            color: theme.accent,
+                            onTap: () => provider.fastForward(seconds: 10),
                           ),
                         ],
                       ),
