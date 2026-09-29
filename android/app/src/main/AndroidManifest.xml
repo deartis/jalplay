@@ -1,6 +1,9 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
-    <!-- Audio permissions -->
+    <!-- Internet Permission -->
+    <uses-permission android:name="android.permission.INTERNET"/>
+
+ <!-- Audio permissions -->
     <!-- Android 13+ -->
     <uses-permission android:name="android.permission.READ_MEDIA_AUDIO"/>
     <!-- Android < 13 -->
@@ -72,3 +75,4 @@
         </intent>
     </queries>
 </manifest>
+

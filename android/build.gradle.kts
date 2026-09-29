@@ -45,10 +45,17 @@ subprojects {
             }
         }
 
-        // Fix 2 (Kotlin side): align Kotlin JVM target with javac target
-        tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompile>().configureEach {
-            kotlinOptions {
-                jvmTarget = "17"
+        // Fix 2 (Kotlin side): align Kotlin JVM target with javac target dynamically
+        afterEvaluate {
+            val updatedAndroidExt = extensions.findByName("android")
+                as? com.android.build.gradle.LibraryExtension
+            val targetCompat = updatedAndroidExt?.compileOptions?.targetCompatibility
+            if (targetCompat != null) {
+                tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompile>().configureEach {
+                    kotlinOptions {
+                        jvmTarget = targetCompat.toString()
+                    }
+                }
             }
         }
     }

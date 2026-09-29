@@ -48,6 +48,8 @@ class PlayerProvider extends ChangeNotifier {
   SongSortField _sortField = SongSortField.title;
   String _ipodTheme = 'classic';
 
+
+
   // Playlists
   List<Playlist> _playlists = [];
 
@@ -243,6 +245,8 @@ class PlayerProvider extends ChangeNotifier {
     _artworkCache.clear();
     await loadSongs();
   }
+
+
 
   // ─── Reset Settings ───
 
